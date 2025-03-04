@@ -26,7 +26,8 @@
     "vue": "^3.4.31",
     "vue-class-component": "^8.0.0-rc.1",
     "vue-i18n": "^9.13.1",
-    "vue-router": "^4.4.0"
+    "vue-router": "^4.4.0",
+    "@xenova/transformers": "^2.6.2"
   },
   "devDependencies": {
     "@picgo/bump-version": "^1.1.2",
