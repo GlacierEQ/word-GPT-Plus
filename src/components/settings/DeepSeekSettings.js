@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+    Stack,
     TextField,
+    Text,
     Toggle,
     MessageBar,
     MessageBarType,
-    Stack,
-    Text,
     Link,
-    Checkbox
+    DefaultButton,
+    Dropdown
 } from '@fluentui/react';
 import { useSettings } from '../../hooks/useSettings';
 
@@ -17,39 +18,38 @@ import { useSettings } from '../../hooks/useSettings';
 export default function DeepSeekSettings() {
     const { settings, updateSetting } = useSettings();
 
-    const handleEndpointChange = (_, value) => {
-        updateSetting('endpoints.deepseek', value);
-    };
+    // Local state
+    const [deepseekApiKey, setDeepseekApiKey] = useState(settings.apiKeys?.deepseek || '');
+    const [useSeperateDeepseekKey, setUseSeperateDeepseekKey] = useState(settings.usage?.useSeperateDeepseekKey === true);
+    const [deepseekEndpoint, setDeepseekEndpoint] = useState(settings.usage?.deepseekEndpoint || 'https://api.deepseek.com/v1/chat/completions');
+    const [deepseekNonCommercial, setDeepseekNonCommercial] = useState(settings.usage?.deepseekNonCommercial === true);
+    const [defaultModel, setDefaultModel] = useState(settings.deepseek?.defaultModel || 'deepseek-vl-2.0-base');
 
-    const handleNonCommercialToggle = (_, checked) => {
-        updateSetting('usage.deepseekNonCommercial', checked);
-    };
-
-    const handleSeparateKeyToggle = (_, checked) => {
-        updateSetting('usage.useSeperateDeepseekKey', checked);
-    };
-
-    const handleApiKeyChange = (_, value) => {
+    // Handle API key change
+    const handleApiKeyChange = (value) => {
+        setDeepseekApiKey(value);
         updateSetting('apiKeys.deepseek', value);
     };
 
-    return (
-        <Stack tokens={{ childrenGap: 12 }} className="deepseek-settings">
-            <Text variant="large">DeepSeek Settings</Text>
+    // Handle toggle for separate API key
+    const handleToggleSeparateKey = (_, checked) => {
+        setUseSeperateDeepseekKey(checked);
+        updateSetting('usage.useSeperateDeepseekKey', checked);
+    };
 
-            {/* Non-commercial usage section */}
-            <Stack tokens={{ childrenGap: 8 }}>
-                <Text variant="mediumPlus">Usage Type</Text>
-                <Toggle
-                    label="Enable free non-commercial usage"
-                    checked={settings.usage.deepseekNonCommercial}
-                    onChange={handleNonCommercialToggle}
-                    inlineLabel
-                />
+    // Handle toggle for non-commercial usage
+    const handleToggleNonCommercial = (_, checked) => {
+        setDeepseekNonCommercial(checked);
+        updateSetting('usage.deepseekNonCommercial', checked);
+    };
 
-                {settings.usage.deepseekNonCommercial && (
-                    <MessageBar messageBarType={MessageBarType.info}>
-                        <Stack tokens={{ childrenGap: 8 }}>
+    // Handle endpoint change
+    const handleEndpointChange = (value) => {
+        setDeepseekEndpoint(value);
+        updateSetting('usage.deepseekEndpoint', value);
+    };
+
+    // Handle default model change
                             <Text>
                                 Non-commercial usage enables free access to DeepSeek models for:
                                 <ul>
@@ -65,58 +65,61 @@ export default function DeepSeekSettings() {
                             <Link href="/docs/deepseek-policy.md" target="_blank">
                                 Learn more about DeepSeek usage policy
                             </Link>
-                        </Stack>
-                    </MessageBar>
-                )}
-            </Stack>
+                        </Stack >
+                    </MessageBar >
+                )
+}
+            </Stack >
 
-            {/* Commercial usage section */}
-            {!settings.usage.deepseekNonCommercial && (
-                <Stack tokens={{ childrenGap: 8 }}>
-                    <Text variant="mediumPlus">API Configuration</Text>
-                    <Toggle
-                        label="Use separate API key for DeepSeek"
-                        checked={settings.usage.useSeperateDeepseekKey}
-                        onChange={handleSeparateKeyToggle}
-                        disabled={settings.usage.deepseekNonCommercial}
-                    />
+    {/* Commercial usage section */ }
+{
+    !settings.usage.deepseekNonCommercial && (
+        <Stack tokens={{ childrenGap: 8 }}>
+            <Text variant="mediumPlus">API Configuration</Text>
+            <Toggle
+                label="Use separate API key for DeepSeek"
+                checked={settings.usage.useSeperateDeepseekKey}
+                onChange={handleSeparateKeyToggle}
+                disabled={settings.usage.deepseekNonCommercial}
+            />
 
-                    {settings.usage.useSeperateDeepseekKey && (
-                        <TextField
-                            label="DeepSeek API Key"
-                            value={settings.apiKeys.deepseek || ''}
-                            onChange={handleApiKeyChange}
-                            placeholder="deepseek-..."
-                            type="password"
-                            canRevealPassword
-                            disabled={settings.usage.deepseekNonCommercial}
-                        />
-                    )}
-
-                    {!settings.usage.useSeperateDeepseekKey && (
-                        <MessageBar messageBarType={MessageBarType.info}>
-                            Using OpenAI API key for DeepSeek. Configure a separate key for better usage tracking.
-                        </MessageBar>
-                    )}
-                </Stack>
+            {settings.usage.useSeperateDeepseekKey && (
+                <TextField
+                    label="DeepSeek API Key"
+                    value={settings.apiKeys.deepseek || ''}
+                    onChange={handleApiKeyChange}
+                    placeholder="deepseek-..."
+                    type="password"
+                    canRevealPassword
+                    disabled={settings.usage.deepseekNonCommercial}
+                />
             )}
 
-            {/* Advanced settings */}
-            <Stack tokens={{ childrenGap: 8 }}>
-                <Text variant="mediumPlus">Advanced Settings</Text>
-                <TextField
-                    label="DeepSeek API Endpoint"
-                    value={settings.endpoints?.deepseek || ''}
-                    onChange={handleEndpointChange}
-                    placeholder="https://api.deepseek.com/v1"
-                />
+            {!settings.usage.useSeperateDeepseekKey && (
+                <MessageBar messageBarType={MessageBarType.info}>
+                    Using OpenAI API key for DeepSeek. Configure a separate key for better usage tracking.
+                </MessageBar>
+            )}
+        </Stack>
+    )
+}
 
-                <Text variant="small" style={{ fontStyle: 'italic' }}>
-                    Default endpoint will be used automatically based on your usage type.
-                </Text>
-            </Stack>
+{/* Advanced settings */ }
+<Stack tokens={{ childrenGap: 8 }}>
+    <Text variant="mediumPlus">Advanced Settings</Text>
+    <TextField
+        label="DeepSeek API Endpoint"
+        value={settings.endpoints?.deepseek || ''}
+        onChange={handleEndpointChange}
+        placeholder="https://api.deepseek.com/v1"
+    />
 
-            {/* Model preferences */}
+    <Text variant="small" style={{ fontStyle: 'italic' }}>
+        Default endpoint will be used automatically based on your usage type.
+    </Text>
+</Stack>
+
+{/* Model preferences */ }
             <Stack tokens={{ childrenGap: 8 }}>
                 <Text variant="mediumPlus">DeepSeek Models</Text>
                 <Checkbox
@@ -142,6 +145,6 @@ export default function DeepSeekSettings() {
                     Commercial usage requires a valid API key with appropriate permissions.
                 </Text>
             </MessageBar>
-        </Stack>
+        </Stack >
     );
 }

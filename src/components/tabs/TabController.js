@@ -1,101 +1,79 @@
-import React, { useState } from 'react';
-import {
-    Pivot,
-    PivotItem,
-    Stack
-} from '@fluentui/react';
+import React, { useState, lazy, Suspense } from 'react';
+import { Pivot, PivotItem, Stack, Spinner, SpinnerSize } from '@fluentui/react';
 
 /**
- * Component for managing tab navigation
- * @param {Object} props - Component props
- * @param {string} props.defaultTab - Default active tab
- * @param {Array} props.tabs - Array of tab definitions
- * @param {Object} props.commonProps - Props to pass to all tab contents
- * @returns {JSX.Element} Tab controller component
+ * Dynamically loads components for each tab
+ * @param {string} componentPath - Path to the component to load
  */
-export default function TabController({
-    defaultTab = 'structured',
-    tabs = [],
-    commonProps = {}
-}) {
-    const [activeTab, setActiveTab] = useState(defaultTab);
+const loadComponent = (componentPath) => {
+    // Create a dynamic import for the requested component
+    return lazy(() => {
+        // Handle special path formatting if needed
+        const adjustedPath = componentPath.startsWith('./') || componentPath.startsWith('../')
+            ? componentPath
+            : `../${componentPath}`;
 
-    // If no tabs provided, use a default set
-    const tabDefinitions = tabs.length > 0 ? tabs : [
-        {
-            key: 'structured',
-            title: 'Structured',
-            component: 'StructuredPrompt'
-        },
-        {
-            key: 'basic',
-            title: 'Basic',
-            component: 'BasicPrompt'
-        },
-        {
-            key: 'photos',
-            title: 'Images',
-            component: 'ImagePanel'
-        }
-    ];
+        // Use dynamic import to load the component
+        return import(`${adjustedPath}`).catch(error => {
+            console.error(`Error loading component: ${componentPath}`, error);
+            // Return a placeholder component if loading fails
+            return {
+                default: () => (
+                    <div>Failed to load component: {componentPath}</div>
+                )
+            };
+        });
+    });
+};
 
+/**
+ * Tab controller component that manages tab navigation
+ * @param {Object} props - Component props
+ * @param {Array} props.tabs - Array of tab definitions
+ * @param {string} props.defaultTab - Default selected tab key
+ * @param {Object} props.commonProps - Props to pass to all tab components
+ */
+export default function TabController({ tabs = [], defaultTab = '', commonProps = {} }) {
+    const [selectedTab, setSelectedTab] = useState(defaultTab || (tabs[0]?.key || ''));
+
+    // Handle tab change
     const handleTabChange = (item) => {
-        setActiveTab(item.props.itemKey);
+        setSelectedTab(item.props.itemKey);
     };
 
-    // Dynamically render the active tab's component
-    const renderTabContent = () => {
-        const activeTabDef = tabDefinitions.find(tab => tab.key === activeTab);
-        if (!activeTabDef) return null;
+    // Get the current tab configuration
+    const currentTab = tabs.find(tab => tab.key === selectedTab) || tabs[0];
 
-        // If component is a string, load it dynamically
-        if (typeof activeTabDef.component === 'string') {
-            const TabComponent = require(`../${activeTabDef.component}`).default;
-            return <TabComponent {...commonProps} {...activeTabDef.props} />;
-        }
-
-        // If component is a React component, render it
-        if (React.isValidElement(activeTabDef.component)) {
-            return React.cloneElement(activeTabDef.component, {
-                ...commonProps,
-                ...activeTabDef.props
-            });
-        }
-
-        // If component is a function component, instantiate it
-        if (typeof activeTabDef.component === 'function') {
-            const Component = activeTabDef.component;
-            return <Component {...commonProps} {...activeTabDef.props} />;
-        }
-
-        return null;
-    };
+    // Dynamically load the component for the current tab
+    const TabComponent = currentTab ? loadComponent(currentTab.component) : null;
 
     return (
-        <Stack tokens={{ childrenGap: 15 }}>
+        <Stack className="tab-controller">
             <Pivot
-                selectedKey={activeTab}
+                selectedKey={selectedTab}
                 onLinkClick={handleTabChange}
                 styles={{
-                    root: {
-                        marginBottom: 15
-                    }
+                    root: { marginBottom: 15 }
                 }}
             >
-                {tabDefinitions.map(tab => (
+                {tabs.map(tab => (
                     <PivotItem
                         key={tab.key}
                         itemKey={tab.key}
                         headerText={tab.title}
-                        headerButtonProps={{
-                            'aria-label': `${tab.title} tab`
-                        }}
                     />
                 ))}
             </Pivot>
 
-            {/* Render the active tab content */}
-            {renderTabContent()}
+            <div className="tab-content">
+                <Suspense fallback={
+                    <Stack horizontalAlign="center" tokens={{ padding: 20 }}>
+                        <Spinner label="Loading content..." size={SpinnerSize.large} />
+                    </Stack>
+                }>
+                    {TabComponent && <TabComponent {...commonProps} />}
+                </Suspense>
+            </div>
         </Stack>
     );
 }

@@ -195,3 +195,10 @@ export const withRetry = async (operation, options = {}) => {
         }
     }
 };
+
+/**
+ * Generic API client interface for different AI providers
+ */
+
+import { withRetry } from '../../utils/errorHandler';
+import { startTiming, endTiming } from '../../utils/timing';

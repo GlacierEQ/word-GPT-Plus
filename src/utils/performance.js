@@ -1,194 +1,165 @@
 /**
- * Utilities for performance monitoring and optimization
+ * Utilities for tracking performance in Word-GPT-Plus
  */
 
-// Track long operations
-const operationTimers = new Map();
-const operationStats = new Map();
+// Store for timing data
+const timings = {};
 
-/**
- * Start timing an operation
- * @param {string} operationName - Name of the operation to track
- */
-export function startTiming(operationName) {
-    operationTimers.set(operationName, performance.now());
-}
-
-/**
- * End timing an operation and record stats
- * @param {string} operationName - Name of the operation to track
- * @param {Object} metadata - Additional metadata about the operation
- */
-export function endTiming(operationName, metadata = {}) {
-    if (!operationTimers.has(operationName)) return;
-
-    const startTime = operationTimers.get(operationName);
-    const duration = performance.now() - startTime;
-
-    // Delete the timer
-    operationTimers.delete(operationName);
-
-    // Record stats
-    if (!operationStats.has(operationName)) {
-        operationStats.set(operationName, {
-            count: 0,
-            totalDuration: 0,
-            min: Infinity,
-            max: 0,
-            recent: []
-        });
-    }
-
-    const stats = operationStats.get(operationName);
-    stats.count++;
-    stats.totalDuration += duration;
-    stats.min = Math.min(stats.min, duration);
-    stats.max = Math.max(stats.max, duration);
-
-    // Keep track of recent timings (last 10)
-    stats.recent.push({
-        timestamp: new Date(),
-        duration,
-        ...metadata
-    });
-    if (stats.recent.length > 10) {
-        stats.recent.shift();
-    }
-
-    // Log slow operations (over 1000ms)
-    if (duration > 1000) {
-        console.warn(`Slow operation: ${operationName} took ${duration.toFixed(2)}ms`, metadata);
-    }
-}
-
-/**
- * Get performance statistics for operations
- * @returns {Object} Performance statistics
- */
-export function getPerformanceStats() {
-    const result = {};
-
-    operationStats.forEach((stats, operationName) => {
-        result[operationName] = {
-            count: stats.count,
-            avgDuration: stats.totalDuration / stats.count,
-            min: stats.min,
-            max: stats.max,
-            recent: stats.recent
-        };
-    });
-
-    return result;
-}
-
-/**
- * Clear performance statistics
- */
-export function clearPerformanceStats() {
-    operationStats.clear();
-}
-
-/**
- * Debounce function to limit frequency of calls
- * @param {Function} func - Function to debounce
- * @param {number} wait - Wait time in ms
- * @returns {Function} Debounced function
- */
-export function debounce(func, wait) {
-    let timeout;
-
-    return function executedFunction(...args) {
-        const later = () => {
-            timeout = null;
-            func(...args);
-        };
-
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
-/**
- * Throttle function to limit execution rate
- * @param {Function} func - Function to throttle
- * @param {number} limit - Limit in ms
- * @returns {Function} Throttled function
- */
-export function throttle(func, limit) {
-    let lastCall = 0;
-
-    return function executedFunction(...args) {
-        const now = Date.now();
-
-        if (now - lastCall >= limit) {
-            lastCall = now;
-            func(...args);
-        }
-    };
-}
-
-/**
- * Track memory usage
- * @returns {Object|null} Memory usage stats if available
- */
-export function getMemoryUsage() {
-    if (performance && performance.memory) {
-        return {
-            totalJSHeapSize: performance.memory.totalJSHeapSize,
-            usedJSHeapSize: performance.memory.usedJSHeapSize,
-            jsHeapSizeLimit: performance.memory.jsHeapSizeLimit,
-            percentUsed: (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100
-        };
-    }
-
-    return null;
-}
-
-/**
- * Resource URL tracker for proper cleanup
- */
+// Store for resource tracking
 export const resourceTracker = {
-    urls: new Set(),
+    resources: new Set(),
 
-    /**
-     * Create and track an object URL
-     * @param {Blob} blob - Blob to create URL from
-     * @returns {string} Object URL
-     */
-    createObjectURL(blob) {
-        const url = URL.createObjectURL(blob);
-        this.urls.add(url);
-        return url;
+    // Track a resource that needs to be released later
+    track(resource) {
+        this.resources.add(resource);
+        return resource;
     },
 
-    /**
-     * Revoke a tracked object URL
-     * @param {string} url - URL to revoke
-     */
-    revokeObjectURL(url) {
-        if (this.urls.has(url)) {
-            URL.revokeObjectURL(url);
-            this.urls.delete(url);
+    // Revoke a specific resource
+    revoke(resource) {
+        if (this.resources.has(resource)) {
+            if (resource instanceof Blob) {
+                URL.revokeObjectURL(resource);
+            } else if (typeof resource.release === 'function') {
+                resource.release();
+            } else if (typeof resource.dispose === 'function') {
+                resource.dispose();
+            } else if (typeof resource.close === 'function') {
+                resource.close();
+            }
+            this.resources.delete(resource);
         }
     },
 
-    /**
-     * Revoke all tracked object URLs
-     */
+    // Revoke all tracked resources
     revokeAll() {
-        this.urls.forEach(url => {
-            URL.revokeObjectURL(url);
+        this.resources.forEach(resource => {
+            try {
+                this.revoke(resource);
+            } catch (e) {
+                console.error('Error revoking resource:', e);
+            }
         });
-        this.urls.clear();
+        this.resources.clear();
     }
 };
 
 /**
- * Clean up resources when component unmounts
- * @returns {Function} Cleanup function for useEffect
+ * Start timing an operation
+ * @param {string} operationName - Name of the operation to time
  */
-export function useResourceCleanup() {
-    return () => {
-        resourceTracker.revokeAll();
+export function startTiming(operationName) {
+    if (!window.performance) return;
+
+    if (!timings[operationName]) {
+        timings[operationName] = {
+            count: 0,
+            totalTime: 0,
+            min: Number.MAX_SAFE_INTEGER,
+            max: 0,
+            current: null,
+            avg: 0,
+            lastTimestamp: 0
+        };
+    }
+
+    timings[operationName].current = performance.now();
+    timings[operationName].lastTimestamp = Date.now();
+}
+
+/**
+ * End timing an operation
+ * @param {string} operationName - Name of the operation
+ * @param {Object} metadata - Additional metadata about the operation
+ */
+export function endTiming(operationName, metadata = {}) {
+    if (!window.performance || !timings[operationName] || timings[operationName].current === null) return;
+
+    const end = performance.now();
+    const elapsed = end - timings[operationName].current;
+
+    // Update timing stats
+    timings[operationName].count++;
+    timings[operationName].totalTime += elapsed;
+    timings[operationName].min = Math.min(timings[operationName].min, elapsed);
+    timings[operationName].max = Math.max(timings[operationName].max, elapsed);
+    timings[operationName].avg = timings[operationName].totalTime / timings[operationName].count;
+    timings[operationName].current = null;
+
+    // Log to console in development
+    if (process.env.NODE_ENV === 'development') {
+        console.debug(`Performance: ${operationName} took ${elapsed.toFixed(2)}ms`, metadata);
+    }
+}
+
+/**
+ * Get timing statistics
+ * @param {string} operationName - Optional name to get stats for a specific operation
+ * @returns {Object} Timing statistics
+ */
+export function getTimingStats(operationName = null) {
+    if (operationName) {
+        return timings[operationName] || null;
+    }
+
+    // Return all timing stats
+    const results = {};
+    Object.keys(timings).forEach(key => {
+        results[key] = { ...timings[key] };
+    });
+
+    return results;
+}
+
+/**
+ * Measure memory usage
+ * @returns {Object} Memory usage statistics
+ */
+export function getMemoryUsage() {
+    if (!window.performance || !window.performance.memory) {
+        return {
+            available: false,
+            usage: 0,
+            limit: 0,
+            percentUsed: 0
+        };
+    }
+
+    const memoryInfo = window.performance.memory;
+    return {
+        available: true,
+        usage: memoryInfo.usedJSHeapSize,
+        limit: memoryInfo.jsHeapSizeLimit,
+        percentUsed: (memoryInfo.usedJSHeapSize / memoryInfo.jsHeapSizeLimit) * 100
     };
+}
+
+/**
+ * High-resolution timer for measuring operations
+ * @param {function} fn - Function to measure
+ * @param {string} label - Label for the measurement
+ * @returns {any} Result of the function
+ */
+export function measure(fn, label) {
+    startTiming(label);
+    try {
+        return fn();
+    } finally {
+        endTiming(label);
+    }
+}
+
+/**
+ * Async high-resolution timer
+ * @param {function} asyncFn - Async function to measure
+ * @param {string} label - Label for the measurement
+ * @returns {Promise<any>} Result of the async function
+ */
+export async function measureAsync(asyncFn, label) {
+    startTiming(label);
+    try {
+        return await asyncFn();
+    } finally {
+        endTiming(label);
+    }
 }
