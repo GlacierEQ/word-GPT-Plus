@@ -59,14 +59,14 @@ export default function ApiKeySettings() {
     // Clear all API keys after confirmation
     const handleClearAllKeys = () => {
         const providers = ['openai', 'azure', 'gemini', 'groq', 'anthropic'];
-        
+
         // Clear keys from state
         const clearedKeys = { ...apiKeys };
         providers.forEach(provider => {
             clearedKeys[provider] = '';
         });
         setApiKeys(clearedKeys);
-        
+
         // Clear keys from settings
         providers.forEach(provider => {
             updateSetting(`apiKeys.${provider}`, '');
@@ -88,28 +88,28 @@ export default function ApiKeySettings() {
         >
             <Stack tokens={{ childrenGap: 15 }}>
                 <Text>Follow these steps to set up Azure OpenAI Service:</Text>
-                
+
                 <Stack tokens={{ childrenGap: 8 }}>
                     <Text>1. Create an Azure OpenAI resource in Azure Portal</Text>
                     <Text>2. Deploy a model and note the deployment ID</Text>
                     <Text>3. Get your API key and endpoint from the resource page</Text>
                     <Text>4. Enter these details in the fields provided</Text>
                 </Stack>
-                
+
                 <Text>Your Azure endpoint will look like:</Text>
                 <Text style={{ fontFamily: 'monospace' }}>
                     https://YOUR_RESOURCE_NAME.openai.azure.com/
                 </Text>
-                
+
                 <MessageBar messageBarType={MessageBarType.warning}>
                     Note that you need separate Azure OpenAI access approval before using this service.
                 </MessageBar>
-                
+
                 <Link href="https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource" target="_blank">
                     Azure OpenAI Documentation
                 </Link>
             </Stack>
-            
+
             <DialogFooter>
                 <DefaultButton text="Close" onClick={() => setShowAzureHelp(false)} />
             </DialogFooter>
@@ -120,7 +120,7 @@ export default function ApiKeySettings() {
         <Stack tokens={{ childrenGap: 15 }} className="api-key-settings">
             <Text variant="large">API Keys</Text>
             <Text>Enter your API keys for the services you want to use. API keys are stored locally in your browser.</Text>
-            
+
             <Stack tokens={{ childrenGap: 15 }}>
                 {/* OpenAI API Key */}
                 <TextField
@@ -134,7 +134,7 @@ export default function ApiKeySettings() {
                 <Link href="https://platform.openai.com/api-keys" target="_blank">
                     Get an OpenAI API key
                 </Link>
-                
+
                 {/* Azure OpenAI */}
                 <Stack tokens={{ childrenGap: 10 }}>
                     <TextField
@@ -145,14 +145,14 @@ export default function ApiKeySettings() {
                         type="password"
                         canRevealPassword
                     />
-                    
+
                     <TextField
                         label="Azure OpenAI Endpoint"
                         value={apiKeys.azureEndpoint}
                         onChange={(_, value) => handleApiKeyChange('azureEndpoint', value)}
                         placeholder="https://your-resource.openai.azure.com/"
                     />
-                    
+
                     <Stack horizontal tokens={{ childrenGap: 10 }}>
                         <Stack.Item grow={1}>
                             <TextField
@@ -171,12 +171,12 @@ export default function ApiKeySettings() {
                             />
                         </Stack.Item>
                     </Stack>
-                    
+
                     <Link onClick={() => setShowAzureHelp(true)}>
                         Help with Azure OpenAI setup
                     </Link>
                 </Stack>
-                
+
                 {/* Google Gemini API Key */}
                 <TextField
                     label="Google Gemini API Key"
@@ -189,7 +189,7 @@ export default function ApiKeySettings() {
                 <Link href="https://aistudio.google.com/app/apikey" target="_blank">
                     Get a Google Gemini API key
                 </Link>
-                
+
                 {/* Groq API Key */}
                 <TextField
                     label="Groq API Key"
@@ -202,7 +202,32 @@ export default function ApiKeySettings() {
                 <Link href="https://console.groq.com/keys" target="_blank">
                     Get a Groq API key
                 </Link>
-                
+
                 {/* Anthropic API Key */}
                 <TextField
                     label="Anthropic API Key (Claude)"
+                    value={apiKeys.anthropic}
+                    onChange={(_, value) => handleApiKeyChange('anthropic', value)}
+                    placeholder="sk-ant-..."
+                    type="password"
+                    canRevealPassword
+                />
+                <Link href="https://console.anthropic.com/settings/keys" target="_blank">
+                    Get an Anthropic API key
+                </Link>
+            </Stack>
+
+            <MessageBar messageBarType={MessageBarType.info}>
+                API keys are stored locally in your browser and are never sent to our servers.
+            </MessageBar>
+
+            <DefaultButton
+                text="Clear All Keys"
+                onClick={handleClearAllKeys}
+                style={{ marginTop: '10px', alignSelf: 'flex-start' }}
+            />
+
+            {azureHelpDialog}
+        </Stack>
+    );
+}

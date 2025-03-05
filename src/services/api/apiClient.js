@@ -1,105 +1,9 @@
 /**
- * Base API client for all external API communications
+ * Base API client with error handling and retry mechanism
  */
-export class ApiClient {
-    constructor(config = {}) {
-        this.baseUrl = config.baseUrl || '';
-        this.apiKey = config.apiKey || null;
-        this.defaultHeaders = config.headers || {};
-        this.timeout = config.timeout || 60000; // 60 second default timeout
-    }
-
-    /**
-     * Make an API request with proper error handling
-     * @param {string} endpoint - API endpoint
-     * @param {Object} options - Request options
-     * @returns {Promise<Object>} Response data
-     * @throws {ApiError} Standardized API error
-     */
-    async request(endpoint, options = {}) {
-        const url = `${this.baseUrl}${endpoint}`;
-
-        const headers = {
-            'Content-Type': 'application/json',
-            ...this.defaultHeaders,
-            ...options.headers
-        };
-
-        if (this.apiKey && !options.skipAuth) {
-            headers['Authorization'] = `Bearer ${this.apiKey}`;
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-        try {
-            const response = await fetch(url, {
-                ...options,
-                headers,
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new ApiError(
-                    errorData.error?.message || `Request failed with status: ${response.status}`,
-                    response.status,
-                    this.constructor.name.replace('Client', ''),
-                    {
-                        endpoint,
-                        requestBody: options.body,
-                        responseData: errorData
-                    }
-                );
-            }
-
-            return await response.json();
-        } catch (error) {
-            clearTimeout(timeoutId);
-
-            if (error.name === 'AbortError') {
-                throw new ApiError(
-                    'Request timed out',
-                    408,
-                    this.constructor.name.replace('Client', ''),
-                    { endpoint }
-                );
-            }
-
-            if (error instanceof ApiError) {
-                throw error;
-            }
-
-            throw new ApiError(
-                error.message,
-                0,
-                this.constructor.name.replace('Client', ''),
-                { endpoint }
-            );
-        }
-    }
-
-    /**
-     * Set the API key
-     * @param {string} apiKey - The API key to use
-     */
-    setApiKey(apiKey) {
-        this.apiKey = apiKey;
-    }
-
-    /**
-     * Set request timeout
-     * @param {number} timeout - Timeout in milliseconds
-     */
-    setTimeout(timeout) {
-        this.timeout = timeout;
-    }
-}
 
 /**
- * Standardized API error
+ * Base API error class
  */
 export class ApiError extends Error {
     constructor(message, statusCode, provider, requestInfo = {}) {
@@ -124,15 +28,7 @@ export class ApiError extends Error {
     }
 
     isTimeout() {
-        return this.statusCode === 408;
-    }
-
-    isNetworkError() {
-        return this.statusCode === 0;
-    }
-
-    get displayMessage() {
-        return this.getUserFriendlyMessage();
+        return this.message.includes('timeout') || this.message.includes('ETIMEDOUT');
     }
 
     getUserFriendlyMessage() {
@@ -149,11 +45,7 @@ export class ApiError extends Error {
         }
 
         if (this.isTimeout()) {
-            return `Request to ${this.provider} timed out. Please check your internet connection.`;
-        }
-
-        if (this.isNetworkError()) {
-            return `Network error when connecting to ${this.provider}. Please check your internet connection.`;
+            return `Request to ${this.provider} timed out. The service might be busy.`;
         }
 
         return `Error communicating with ${this.provider}: ${this.message}`;
@@ -161,12 +53,137 @@ export class ApiError extends Error {
 }
 
 /**
- * Exponential backoff retry mechanism
- * @param {Function} operation - Async operation to retry
- * @param {Object} options - Retry options
- * @returns {Promise<any>} - Operation result
+ * Base API client class
  */
-export const withRetry = async (operation, options = {}) => {
+export class ApiClient {
+    /**
+     * Create a new API client
+     * @param {Object} config - API client configuration
+     * @param {string} config.baseUrl - Base URL for API
+     * @param {string} config.apiKey - API key
+     * @param {number} config.timeout - Request timeout in ms
+     * @param {string} config.provider - Provider name
+     * @param {Object} config.defaultHeaders - Default headers
+     */
+    constructor(config) {
+        this.baseUrl = config.baseUrl;
+        this.apiKey = config.apiKey;
+        this.timeout = config.timeout || 60000; // Default 60 seconds
+        this.provider = config.provider || 'Unknown';
+        this.defaultHeaders = config.defaultHeaders || {};
+    }
+
+    /**
+     * Make API request
+     * @param {string} endpoint - API endpoint
+     * @param {Object} options - Request options
+     * @returns {Promise<Object>} Response data
+     */
+    async request(endpoint, options = {}) {
+        const url = `${this.baseUrl}${endpoint}`;
+
+        const headers = {
+            ...this.defaultHeaders,
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+
+        // Add API key if provided
+        if (this.apiKey) {
+            headers['Authorization'] = `Bearer ${this.apiKey}`;
+        }
+
+        const requestOptions = {
+            ...options,
+            headers,
+            signal: options.signal || AbortSignal.timeout(this.timeout)
+        };
+
+        try {
+            const response = await fetch(url, requestOptions);
+
+            if (!response.ok) {
+                let errorMessage;
+                try {
+                    const errorData = await response.json();
+                    errorMessage = errorData.error?.message || errorData.message || response.statusText;
+                } catch {
+                    errorMessage = response.statusText;
+                }
+
+                throw new ApiError(
+                    errorMessage,
+                    response.status,
+                    this.provider,
+                    {
+                        endpoint,
+                        method: options.method || 'GET'
+                    }
+                );
+            }
+
+            return await response.json();
+        } catch (error) {
+            // Format fetch errors and network errors as API errors
+            if (!(error instanceof ApiError)) {
+                error = this.formatError(error, {
+                    endpoint,
+                    method: options.method || 'GET'
+                });
+            }
+
+            throw error;
+        }
+    }
+
+    /**
+     * Format errors into ApiError instances
+     * @param {Error} error - Original error
+     * @param {Object} requestDetails - Request details
+     * @returns {ApiError} Formatted error
+     */
+    formatError(error, requestDetails) {
+        if (error instanceof ApiError) {
+            return error;
+        }
+
+        // Handle AbortError (timeout or user cancel)
+        if (error.name === 'AbortError') {
+            return new ApiError(
+                'Request was aborted or timed out',
+                0,
+                this.provider,
+                requestDetails
+            );
+        }
+
+        // Handle network errors
+        if (error.name === 'TypeError' && error.message.includes('NetworkError')) {
+            return new ApiError(
+                'Network error - check your internet connection',
+                0,
+                this.provider,
+                requestDetails
+            );
+        }
+
+        // Default error
+        return new ApiError(
+            error.message || 'Unknown error',
+            0,
+            this.provider,
+            requestDetails
+        );
+    }
+}
+
+/**
+ * Retry a function with exponential backoff
+ * @param {Function} operation - Function to retry
+ * @param {Object} options - Options
+ * @returns {Promise<any>} Result of operation
+ */
+export async function withRetry(operation, options = {}) {
     const {
         maxRetries = 3,
         baseDelay = 1000,
@@ -191,14 +208,8 @@ export const withRetry = async (operation, options = {}) => {
                 maxDelay
             );
 
+            // Wait before retrying
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
-};
-
-/**
- * Generic API client interface for different AI providers
- */
-
-import { withRetry } from '../../utils/errorHandler';
-import { startTiming, endTiming } from '../../utils/timing';
+}

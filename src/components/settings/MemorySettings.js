@@ -1,178 +1,231 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Stack,
     Toggle,
     Text,
     DefaultButton,
-    ProgressIndicator,
-    MessageBar,
-    MessageBarType,
+    PrimaryButton,
     Dialog,
     DialogType,
     DialogFooter,
-    PrimaryButton
+    Slider,
+    Spinner,
+    SpinnerSize,
+    MessageBar,
+    MessageBarType
 } from '@fluentui/react';
 import { useSettings } from '../../hooks/useSettings';
-import { getMemoryStats, clearAllMemories } from '../../utils/memorySystem';
+import { getMemoryStatistics, clearAllMemories } from '../../services/memory/memorySystem';
 
 /**
- * Component for managing memory system settings
+ * Component for memory system settings
  */
 export default function MemorySettings() {
     const { settings, updateSetting } = useSettings();
-    const [memoryStats, setMemoryStats] = useState(() => getMemoryStats());
-    const [isClearing, setIsClearing] = useState(false);
+
+    // Memory settings
+    const [memoryEnabled, setMemoryEnabled] = useState(settings.memory?.enabled !== false);
+    const [memoryLimit, setMemoryLimit] = useState(settings.memory?.maxItems || 1000);
+    const [promptIncludeCount, setPromptIncludeCount] = useState(settings.memory?.promptIncludeCount || 3);
     const [showClearDialog, setShowClearDialog] = useState(false);
-    const [clearStatus, setClearStatus] = useState(null);
+    const [isLoadingStats, setIsLoadingStats] = useState(true);
+    const [memoryStats, setMemoryStats] = useState(null);
+    const [clearSuccess, setClearSuccess] = useState(false);
 
-    // Toggle memory system
-    const handleMemoryToggle = (_, checked) => {
-        updateSetting('features.memoryEnabled', checked);
+    // Load memory statistics
+    useEffect(() => {
+        if (memoryEnabled) {
+            setIsLoadingStats(true);
+            try {
+                const stats = getMemoryStatistics();
+                setMemoryStats(stats);
+            } catch (error) {
+                console.error('Error loading memory statistics:', error);
+            } finally {
+                setIsLoadingStats(false);
+            }
+        }
+    }, [memoryEnabled, clearSuccess]);
+
+    // Handle memory toggle
+    const handleToggleMemory = (_, checked) => {
+        setMemoryEnabled(checked);
+        updateSetting('memory.enabled', checked);
     };
 
-    // Toggle contextual awareness
-    const handleContextToggle = (_, checked) => {
-        updateSetting('features.contextualAwareness', checked);
+    // Handle memory limit change
+    const handleMemoryLimitChange = (value) => {
+        setMemoryLimit(value);
+        updateSetting('memory.maxItems', value);
     };
 
-    // Handle clearing memory
-    const handleClearMemory = async () => {
-        setIsClearing(true);
-        setClearStatus(null);
+    // Handle prompt count change
+    const handlePromptIncludeCountChange = (value) => {
+        setPromptIncludeCount(value);
+        updateSetting('memory.promptIncludeCount', value);
+    };
 
+    // Handle clear all memories
+    const handleClearAllMemories = () => {
         try {
-            await clearAllMemories();
-            setMemoryStats(getMemoryStats());
-            setClearStatus({
-                type: 'success',
-                message: 'Memory successfully cleared'
-            });
-        } catch (error) {
-            console.error('Error clearing memory:', error);
-            setClearStatus({
-                type: 'error',
-                message: `Failed to clear memory: ${error.message}`
-            });
-        } finally {
-            setIsClearing(false);
+            clearAllMemories();
             setShowClearDialog(false);
+            setClearSuccess(true);
+
+            // Reset success message after 3 seconds
+            setTimeout(() => {
+                setClearSuccess(false);
+            }, 3000);
+        } catch (error) {
+            console.error('Error clearing memories:', error);
         }
     };
 
-    // Calculate memory usage percentage
-    const getMemoryUsagePercentage = () => {
-        if (!memoryStats) return 0;
-        const maxMemories = 1000; // Hypothetical max
-        return Math.min(100, (memoryStats.totalMemories / maxMemories) * 100);
-    };
+    // Clear memories confirmation dialog
+    const clearDialog = (
+        <Dialog
+            hidden={!showClearDialog}
+            onDismiss={() => setShowClearDialog(false)}
+            dialogContentProps={{
+                type: DialogType.normal,
+                title: 'Clear All Memories',
+                subText: 'Are you sure you want to clear all stored memories? This cannot be undone.'
+            }}
+        >
+            <DialogFooter>
+                <PrimaryButton
+                    text="Clear All"
+                    onClick={handleClearAllMemories}
+                />
+                <DefaultButton
+                    text="Cancel"
+                    onClick={() => setShowClearDialog(false)}
+                />
+            </DialogFooter>
+        </Dialog>
+    );
 
     return (
         <Stack tokens={{ childrenGap: 15 }} className="memory-settings">
             <Text variant="large">Memory System Settings</Text>
 
-            {/* Toggle memory system */}
-            <Toggle
-                label="Enable long-term memory"
-                checked={settings.features.memoryEnabled}
-                onChange={handleMemoryToggle}
-                inlineLabel
-            />
+            <Stack tokens={{ childrenGap: 10 }}>
+                {/* Memory toggle */}
+                <Toggle
+                    label="Enable long-term memory"
+                    checked={memoryEnabled}
+                    onChange={handleToggleMemory}
+                    onText="Enabled"
+                    offText="Disabled"
+                />
 
-            {settings.features.memoryEnabled && (
-                <MessageBar messageBarType={MessageBarType.info}>
-                    Long-term memory allows Word-GPT-Plus to remember context across sessions,
-                    understand your preferences, and provide more personalized responses.
-                </MessageBar>
-            )}
+                {memoryEnabled && (
+                    <MessageBar messageBarType={MessageBarType.info}>
+                        Long-term memory helps the AI remember your past interactions and preferences, creating more personalized responses over time.
+                    </MessageBar>
+                )}
 
-            {/* Toggle contextual awareness */}
-            <Toggle
-                label="Enable contextual awareness"
-                checked={settings.features.contextualAwareness}
-                onChange={handleContextToggle}
-                inlineLabel
-                disabled={!settings.features.memoryEnabled}
-            />
-
-            {settings.features.contextualAwareness && settings.features.memoryEnabled && (
-                <MessageBar messageBarType={MessageBarType.info}>
-                    Contextual awareness allows the AI to analyze your document context
-                    for more relevant responses that match your document's style and terminology.
-                </MessageBar>
-            )}
-
-            {/* Memory stats */}
-            {settings.features.memoryEnabled && memoryStats && (
-                <Stack tokens={{ childrenGap: 10 }} className="memory-stats-panel">
-                    <Text variant="mediumPlus">Memory Statistics</Text>
-
+                {/* Memory limit slider */}
+                {memoryEnabled && (
                     <Stack tokens={{ childrenGap: 5 }}>
-                        <Text>Total memories stored: {memoryStats.totalMemories}</Text>
-                        <Text>Total interactions: {memoryStats.totalInteractions}</Text>
-                        <Text>Used memory entries: {getMemoryUsagePercentage().toFixed(1)}%</Text>
-
-                        <ProgressIndicator
-                            percentComplete={getMemoryUsagePercentage() / 100}
-                            barHeight={5}
-                            styles={{
-                                progressBar: {
-                                    backgroundColor: getMemoryUsagePercentage() > 80 ? '#d13438' : '#0078d4'
-                                }
-                            }}
+                        <Text>Maximum memory items</Text>
+                        <Slider
+                            min={100}
+                            max={5000}
+                            step={100}
+                            value={memoryLimit}
+                            showValue
+                            onChange={handleMemoryLimitChange}
                         />
+                        <Text variant="small" style={{ fontStyle: 'italic' }}>
+                            Higher values use more storage but allow more context to be remembered.
+                        </Text>
                     </Stack>
+                )}
 
-                    {/* Clear memory button */}
+                {/* Prompt inclusion count */}
+                {memoryEnabled && (
+                    <Stack tokens={{ childrenGap: 5 }}>
+                        <Text>Memories to include in prompts</Text>
+                        <Slider
+                            min={0}
+                            max={10}
+                            step={1}
+                            value={promptIncludeCount}
+                            showValue
+                            onChange={handlePromptIncludeCountChange}
+                        />
+                        <Text variant="small" style={{ fontStyle: 'italic' }}>
+                            Higher values provide more context but use more tokens.
+                        </Text>
+                    </Stack>
+                )}
+
+                {/* Memory statistics */}
+                {memoryEnabled && (
+                    <Stack tokens={{ childrenGap: 10 }} style={{ marginTop: 10 }}>
+                        <Text variant="mediumPlus">Memory Statistics</Text>
+
+                        {isLoadingStats ? (
+                            <Spinner size={SpinnerSize.small} label="Loading memory statistics..." />
+                        ) : memoryStats ? (
+                            <Stack tokens={{ childrenGap: 5 }} className="memory-stats">
+                                <Text>Total memories: {memoryStats.count}</Text>
+                                <Text>Total interactions: {memoryStats.systemStats.totalInteractions}</Text>
+                                {memoryStats.count > 0 && (
+                                    <>
+                                        <Text>
+                                            Memory types: {Object.entries(memoryStats.types)
+                                                .map(([type, count]) => `${type} (${count})`)
+                                                .join(', ')}
+                                        </Text>
+                                        <Text>
+                                            Most used tags: {Object.entries(memoryStats.tags)
+                                                .sort((a, b) => b[1] - a[1])
+                                                .slice(0, 5)
+                                                .map(([tag, count]) => `${tag} (${count})`)
+                                                .join(', ')}
+                                        </Text>
+                                        {memoryStats.timeStats.newest && (
+                                            <Text>
+                                                Last memory: {new Date(memoryStats.timeStats.newest).toLocaleDateString()}
+                                            </Text>
+                                        )}
+                                    </>
+                                )}
+                            </Stack>
+                        ) : (
+                            <Text>No memory statistics available.</Text>
+                        )}
+                    </Stack>
+                )}
+
+                {/* Clear all memories button */}
+                {memoryEnabled && (
                     <DefaultButton
-                        text="Clear all memories"
+                        text="Clear All Memories"
                         onClick={() => setShowClearDialog(true)}
-                        disabled={isClearing || memoryStats.totalMemories === 0}
-                        iconProps={{ iconName: 'Delete' }}
-                        className="clear-memory-btn"
+                        disabled={!memoryStats || memoryStats.count === 0}
+                        style={{ marginTop: 10, alignSelf: 'flex-start' }}
                     />
+                )}
 
-                    {clearStatus && (
-                        <MessageBar
-                            messageBarType={clearStatus.type === 'success' ? MessageBarType.success : MessageBarType.error}
-                            onDismiss={() => setClearStatus(null)}
-                        >
-                            {clearStatus.message}
-                        </MessageBar>
-                    )}
-                </Stack>
-            )}
-
-            {/* Memory privacy notice */}
-            <Stack className="memory-privacy">
-                <Text variant="mediumPlus">Privacy Information</Text>
-                <Text variant="small">
-                    All memory is stored locally in your browser. No data is sent to external servers
-                    beyond what's needed for AI processing. Clearing browser data will also clear memory.
-                </Text>
+                {/* Success message */}
+                {clearSuccess && (
+                    <MessageBar messageBarType={MessageBarType.success}>
+                        All memories have been cleared successfully.
+                    </MessageBar>
+                )}
             </Stack>
 
-            {/* Confirmation dialog */}
-            <Dialog
-                hidden={!showClearDialog}
-                onDismiss={() => setShowClearDialog(false)}
-                dialogContentProps={{
-                    type: DialogType.normal,
-                    title: 'Clear Memory',
-                    subText: 'Are you sure you want to clear all memories? This action cannot be undone and will reset all learned preferences and context.'
-                }}
-            >
-                <DialogFooter>
-                    <PrimaryButton
-                        onClick={handleClearMemory}
-                        text="Clear Memory"
-                        disabled={isClearing}
-                    />
-                    <DefaultButton
-                        onClick={() => setShowClearDialog(false)}
-                        text="Cancel"
-                    />
-                </DialogFooter>
-            </Dialog>
+            {/* Memory disabled message */}
+            {!memoryEnabled && (
+                <MessageBar messageBarType={MessageBarType.warning}>
+                    Memory system is disabled. The AI will not remember past interactions between sessions.
+                </MessageBar>
+            )}
+
+            {clearDialog}
         </Stack>
     );
 }

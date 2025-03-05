@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+    xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:type="TaskPaneApp">
+    <Id>12345678-1234-1234-1234-123456789012</Id>
+    <Version>1.0.0</Version>
+    <ProviderName>Test</ProviderName>
+    <DefaultLocale>en-US</DefaultLocale>
+    <DisplayName DefaultValue="ACTUAL Working Add-in" />
+    <Description DefaultValue="This one ACTUALLY works"/>
+    <IconUrl DefaultValue="https://officedev.github.io/Office-Add-in-samples/Samples/hello-world/images/button16x16.png" />
+    <HighResolutionIconUrl DefaultValue="https://officedev.github.io/Office-Add-in-samples/Samples/hello-world/images/button32x32.png" />
+    <Hosts>
+        <Host Name="Document" />
+    </Hosts>
+    <DefaultSettings>
+        <SourceLocation DefaultValue="https://officedev.github.io/Office-Add-in-samples/Samples/hello-world/html/taskpane.html" />
+    </DefaultSettings>
+    <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>

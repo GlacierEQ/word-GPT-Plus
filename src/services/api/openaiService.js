@@ -1,4 +1,6 @@
 import { ApiClient, ApiError, withRetry } from './apiClient';
+import { startTiming, endTiming } from '../../utils/performance';
+import { getSetting } from '../settings/settingsManager';
 
 /**
  * OpenAI-specific error class
@@ -31,190 +33,201 @@ class OpenAIError extends ApiError {
 }
 
 /**
- * OpenAI API client for text and image generation
+ * OpenAI API client implementation
  */
 export class OpenAIClient extends ApiClient {
+    /**
+     * Create a new OpenAI client
+     * @param {Object} config - Configuration
+     * @param {string} config.apiKey - OpenAI API key
+     * @param {string} config.baseUrl - Base URL (defaults to OpenAI's API)
+     */
     constructor(config = {}) {
+        const baseUrl = config.baseUrl || 'https://api.openai.com/v1';
+
         super({
-            baseUrl: 'https://api.openai.com/v1',
-            ...config
+            baseUrl,
+            apiKey: config.apiKey,
+            timeout: config.timeout || 60000, // 60 seconds default
+            provider: 'OpenAI'
         });
     }
 
     /**
-     * Generate text with optional streaming
-     * @param {string} prompt - Input prompt
+     * Generate text using chat completion API
+     * @param {Array<Object>} messages - Chat messages
      * @param {Object} options - Generation options
-     * @returns {Promise<Object>} Generated text or stream
+     * @returns {Promise<Object>} Generated text
      */
-    async generateText(prompt, options = {}) {
-        const {
-            model = 'gpt-4',
-            temperature = 0.7,
-            maxTokens = 1000,
-            stream = false,
-            systemPrompt = 'You are a helpful assistant.',
-            onStreamChunk = null
-        } = options;
+    async generateChatCompletion(messages, options = {}) {
+        startTiming('openai.chat');
 
-        // Request details for error reporting
-        const requestDetails = {
-            endpoint: '/chat/completions',
-            model,
-            promptLength: prompt.length,
-            temperature,
-            maxTokens
+        const data = {
+            model: options.model || 'gpt-4',
+            messages,
+            temperature: options.temperature !== undefined ? options.temperature : 0.7,
+            max_tokens: options.maxTokens || 2048,
+            top_p: options.topP || 1,
+            frequency_penalty: options.frequencyPenalty || 0,
+            presence_penalty: options.presencePenalty || 0,
+            stream: options.stream || false
         };
 
         try {
-            // Format request
-            const requestBody = {
-                model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: prompt }
-                ],
-                temperature,
-                max_tokens: maxTokens,
-                stream
-            };
-
-            // Handle streaming
-            if (stream && onStreamChunk) {
-                return await this.streamResponse('/chat/completions', requestBody, onStreamChunk);
-            }
-
-            // Standard request
             const response = await this.request('/chat/completions', {
                 method: 'POST',
-                body: JSON.stringify(requestBody)
+                body: JSON.stringify(data)
             });
 
-            return response?.choices?.[0]?.message?.content || '';
+            endTiming('openai.chat', {
+                model: data.model,
+                messageCount: messages.length
+            });
+
+            return response;
         } catch (error) {
-            throw this.formatError(error, requestDetails);
+            endTiming('openai.chat', { error: true });
+            throw error;
         }
     }
 
     /**
-     * Process streamed response from API
-     * @param {string} endpoint - API endpoint
-     * @param {Object} body - Request body
-     * @param {Function} onChunk - Callback for each chunk
-     * @returns {Promise<string>} Complete response text
+     * Generate text using completion API (legacy)
+     * @param {string} prompt - Text prompt
+     * @param {Object} options - Generation options
+     * @returns {Promise<Object>} Generated text
      */
-    async streamResponse(endpoint, body, onChunk) {
-        const url = `${this.baseUrl}${endpoint}`;
+    async generateCompletion(prompt, options = {}) {
+        startTiming('openai.completion');
 
-        const headers = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`,
+        const data = {
+            model: options.model || 'gpt-3.5-turbo-instruct',
+            prompt,
+            temperature: options.temperature !== undefined ? options.temperature : 0.7,
+            max_tokens: options.maxTokens || 2048,
+            top_p: options.topP || 1,
+            frequency_penalty: options.frequencyPenalty || 0,
+            presence_penalty: options.presencePenalty || 0,
+            stream: options.stream || false
         };
 
         try {
-            const response = await fetch(url, {
+            const response = await this.request('/completions', {
                 method: 'POST',
-                headers,
-                body: JSON.stringify(body)
+                body: JSON.stringify(data)
             });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new OpenAIError(
-                    errorData.error?.message || `Stream request failed with status: ${response.status}`,
-                    response.status,
-                    { endpoint }
-                );
-            }
+            endTiming('openai.completion', {
+                model: data.model,
+                promptLength: prompt.length
+            });
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let fullText = '';
+            return response;
+        } catch (error) {
+            endTiming('openai.completion', { error: true });
+            throw error;
+        }
+    }
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+    /**
+     * Analyze an image with GPT-4 Vision
+     * @param {string} imageBase64 - Base64-encoded image
+     * @param {string} prompt - Text prompt for image analysis
+     * @param {Object} options - Generation options
+     * @returns {Promise<Object>} Analysis result
+     */
+    async analyzeImage(imageBase64, prompt, options = {}) {
+        startTiming('openai.vision');
 
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
+        // Make sure the image is properly formatted for the API
+        const imageUrl = imageBase64.startsWith('data:image')
+            ? imageBase64
+            : `data:image/jpeg;base64,${imageBase64}`;
 
-                for (const line of lines) {
-                    if (!line.trim() || line.trim() === 'data: [DONE]') continue;
-
-                    try {
-                        // Extract the JSON part
-                        const jsonStr = line.replace(/^data: /, '').trim();
-                        if (!jsonStr) continue;
-
-                        const json = JSON.parse(jsonStr);
-                        const content = json.choices?.[0]?.delta?.content || '';
-
-                        if (content) {
-                            fullText += content;
-                            onChunk(content, fullText);
+        const messages = [
+            {
+                role: 'system',
+                content: options.systemPrompt || 'You are a helpful assistant that analyzes images.'
+            },
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: prompt || 'Describe this image in detail.' },
+                    {
+                        type: 'image_url',
+                        image_url: {
+                            url: imageUrl,
+                            detail: options.highDetail ? 'high' : 'auto'
                         }
-                    } catch (e) {
-                        console.warn('Error parsing JSON from stream', e);
                     }
-                }
+                ]
             }
+        ];
 
-            return fullText;
-        } catch (error) {
-            throw this.formatError(error, { endpoint });
-        }
-    }
-
-    /**
-     * Analyze image using OpenAI Vision model
-     * @param {string} base64Image - Base64-encoded image
-     * @param {string} prompt - Prompt for image analysis
-     * @param {Object} options - Additional options
-     * @returns {Promise<string>} Analysis text
-     */
-    async analyzeImage(base64Image, prompt, options = {}) {
-        const {
-            model = 'gpt-4-vision-preview',
-            detail = 'auto',
-            maxTokens = 1000
-        } = options;
-
-        const requestDetails = {
-            endpoint: '/chat/completions',
-            model,
-            imageAnalysis: true
+        const data = {
+            model: options.model || 'gpt-4-vision-preview',
+            messages,
+            temperature: options.temperature !== undefined ? options.temperature : 0.7,
+            max_tokens: options.maxTokens || 4096
         };
 
         try {
             const response = await this.request('/chat/completions', {
                 method: 'POST',
-                body: JSON.stringify({
-                    model,
-                    messages: [
-                        {
-                            role: 'user',
-                            content: [
-                                {
-                                    type: 'text',
-                                    text: prompt || 'Describe this image in detail.'
-                                },
-                                {
-                                    type: 'image_url',
-                                    image_url: {
-                                        url: `data:image/jpeg;base64,${base64Image}`,
-                                        detail
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    max_tokens: maxTokens
-                })
+                body: JSON.stringify(data)
             });
 
-            return response?.choices?.[0]?.message?.content || '';
+            endTiming('openai.vision', { model: data.model });
+            return response;
         } catch (error) {
-            throw this.formatError(error, requestDetails);
+            endTiming('openai.vision', { error: true });
+            throw error;
+        }
+    }
+
+    /**
+     * Create embeddings for text
+     * @param {string|Array<string>} input - Text to embed
+     * @param {Object} options - Embedding options
+     * @returns {Promise<Object>} Embeddings
+     */
+    async createEmbedding(input, options = {}) {
+        startTiming('openai.embedding');
+
+        const data = {
+            model: options.model || 'text-embedding-3-small',
+            input: Array.isArray(input) ? input : [input]
+        };
+
+        try {
+            const response = await this.request('/embeddings', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+
+            endTiming('openai.embedding', {
+                model: data.model,
+                inputCount: data.input.length
+            });
+
+            return response;
+        } catch (error) {
+            endTiming('openai.embedding', { error: true });
+            throw error;
+        }
+    }
+
+    /**
+     * Get list of available models
+     * @returns {Promise<Array<Object>>} Models list
+     */
+    async listModels() {
+        try {
+            const response = await this.request('/models');
+            return response.data || [];
+        } catch (error) {
+            console.error('Error listing OpenAI models:', error);
+            return [];
         }
     }
 
@@ -284,10 +297,14 @@ export class OpenAIClient extends ApiClient {
 }
 
 /**
- * Create a preconfigured OpenAI client with API key
- * @param {string} apiKey - OpenAI API key
- * @returns {OpenAIClient} Configured client
+ * Create an OpenAI client singleton
+ * @returns {OpenAIClient} OpenAI client
  */
-export const createOpenAIClient = (apiKey) => {
+export function createOpenAIClient() {
+    const apiKey = getSetting('apiKeys.openai');
+
     return new OpenAIClient({ apiKey });
-};
+}
+
+// Export a singleton instance
+export const openai = createOpenAIClient();

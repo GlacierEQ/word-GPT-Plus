@@ -1,0 +1,8 @@
+[2025-03-04 15:23:25] Starting Word-GPT-Plus Auto-Updater
+[2025-03-04 15:23:25] Repository root: C:\Users\casey\OneDrive\Documents\GitHub\word-GPT-Plus
+[2025-03-04 15:23:25] Created backup directory: C:\Users\casey\OneDrive\Documents\GitHub\word-GPT-Plus\backups
+[2025-03-04 15:23:25] No existing update configuration. Creating default.
+[2025-03-04 15:23:25] Detected current version from package.json: 1.0.0
+[2025-03-04 15:23:43] Starting Word-GPT-Plus Auto-Updater
+[2025-03-04 15:23:43] Repository root: C:\Users\casey\OneDrive\Documents\GitHub\word-GPT-Plus
+[2025-03-04 15:23:43] Loaded update configuration. Current version: 1.0.0

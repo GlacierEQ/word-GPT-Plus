@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { SettingsManager, SettingsSchema } from '../services/settings/settingsManager';
+import { SettingsContext } from '../context/SettingsContext';
 
 // Create a singleton instance of the settings manager
 const settingsManager = new SettingsManager(SettingsSchema);
@@ -9,112 +10,63 @@ const settingsManager = new SettingsManager(SettingsSchema);
  * @returns {Object} Settings management utilities
  */
 export function useSettings() {
-    const [settings, setSettings] = useState(() => getInitialSettings());
+    const context = useContext(SettingsContext);
 
-    // Get initial settings from manager
-    function getInitialSettings() {
-        const initialSettings = {};
-
-        // Process each category from schema
-        Object.keys(SettingsSchema).forEach(category => {
-            initialSettings[category] = {};
-
-            // Process each key in category
-            Object.keys(SettingsSchema[category]).forEach(key => {
-                initialSettings[category][key] = settingsManager.get(`${category}.${key}`);
-            });
-        });
-
-        return initialSettings;
+    if (!context) {
+        throw new Error('useSettings must be used within a SettingsProvider');
     }
 
-    // Update a single setting by path
-    const updateSetting = useCallback((path, value, persist = true) => {
-        setSettings(prevSettings => {
-            // Split path into parts (e.g., 'apiKeys.openai' -> ['apiKeys', 'openai'])
-            const parts = path.split('.');
-            if (parts.length !== 2) {
-                console.error('Invalid setting path, expected format: category.key');
-                return prevSettings;
-            }
+    return context;
+}
 
-            const [category, key] = parts;
+/**
+ * Utility to get a specific setting directly (for non-React code)
+ * @param {string} path - Setting path in dot notation (e.g., 'features.memoryEnabled')
+ * @param {any} defaultValue - Default value if setting doesn't exist
+ * @returns {any} The setting value
+ */
+export function getSetting(path, defaultValue = null) {
+    // Extract category and key from path
+    const [category, key] = path.split('.');
 
-            // Save to settings manager (handles persistence)
-            settingsManager.set(path, value, persist);
+    try {
+        // Try to get from localStorage
+        const categoryData = localStorage.getItem(`settings_${category}`);
+        if (!categoryData) return defaultValue;
 
-            // Update local state
-            return {
-                ...prevSettings,
-                [category]: {
-                    ...prevSettings[category],
-                    [key]: value
-                }
-            };
-        });
-    }, []);
+        const settings = JSON.parse(categoryData);
+        return settings[key] !== undefined ? settings[key] : defaultValue;
+    } catch (error) {
+        console.error(`Error getting setting: ${path}`, error);
+        return defaultValue;
+    }
+}
 
-    // Export/import all settings
-    const exportSettings = useCallback(() => {
-        const exported = { ...settings };
+/**
+ * Utility to update a specific setting directly (for non-React code)
+ * @param {string} path - Setting path in dot notation (e.g., 'features.memoryEnabled')
+ * @param {any} value - Value to store
+ * @returns {boolean} Success status
+ */
+export function updateSetting(path, value) {
+    // Extract category and key from path
+    const [category, key] = path.split('.');
 
-        // Remove sensitive data
-        Object.keys(SettingsSchema).forEach(category => {
-            Object.keys(SettingsSchema[category]).forEach(key => {
-                if (SettingsSchema[category][key].sensitive) {
-                    if (!exported[category]) exported[category] = {};
-                    exported[category][key] = '[REDACTED]';
-                }
-            });
-        });
+    try {
+        // Get current settings for this category
+        const categoryKey = `settings_${category}`;
+        const categoryData = localStorage.getItem(categoryKey);
+        const settings = categoryData ? JSON.parse(categoryData) : {};
 
-        return JSON.stringify(exported, null, 2);
-    }, [settings]);
+        // Update the setting
+        settings[key] = value;
 
-    const importSettings = useCallback((jsonString) => {
-        try {
-            const imported = JSON.parse(jsonString);
+        // Save back to localStorage
+        localStorage.setItem(categoryKey, JSON.stringify(settings));
 
-            // Validate and import each setting
-            Object.keys(imported).forEach(category => {
-                if (!SettingsSchema[category]) return;
-
-                Object.keys(imported[category]).forEach(key => {
-                    if (!SettingsSchema[category][key]) return;
-
-                    // Skip sensitive data with placeholder values
-                    if (SettingsSchema[category][key].sensitive &&
-                        imported[category][key] === '[REDACTED]') return;
-
-                    // Import valid setting
-                    const path = `${category}.${key}`;
-                    updateSetting(path, imported[category][key]);
-                });
-            });
-
-            return true;
-        } catch (e) {
-            console.error('Error importing settings:', e);
-            return false;
-        }
-    }, [updateSetting]);
-
-    // Reset settings to defaults
-    const resetSettings = useCallback(() => {
-        Object.keys(SettingsSchema).forEach(category => {
-            Object.keys(SettingsSchema[category]).forEach(key => {
-                if (SettingsSchema[category][key].default !== undefined) {
-                    updateSetting(`${category}.${key}`, SettingsSchema[category][key].default);
-                }
-            });
-        });
-    }, [updateSetting]);
-
-    return {
-        settings,
-        updateSetting,
-        exportSettings,
-        importSettings,
-        resetSettings
-    };
+        return true;
+    } catch (error) {
+        console.error(`Error updating setting: ${path}`, error);
+        return false;
+    }
 }

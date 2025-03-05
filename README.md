@@ -139,3 +139,76 @@ MIT License
 ## Show your support
 
 Give a ⭐️ if this project helped you!
+
+# Word GPT Plus
+
+A simple, no-server Microsoft Word add-in that integrates OpenAI, Azure OpenAI, Google Gemini, and Groq APIs directly within Word.
+
+## Ultra Simple Installation (2 Steps)
+
+1. **Download this repository** to your computer
+
+2. **Run `register.cmd`** by double-clicking it
+   - This creates the manifest file and registers the add-in with Word
+   - If you get a security warning, click "Run" or "Yes"
+
+That's it! Now open Microsoft Word and find the add-in under Insert > Add-ins > My Add-ins.
+
+## Features
+
+- Works without a server - runs completely locally
+- Supports multiple AI providers:
+  - OpenAI API
+  - Azure OpenAI API
+  - Google Gemini API
+  - Groq API
+- Generate text based on your prompts
+- Insert AI-generated content directly into your document
+- Settings are saved between sessions
+- Minimalist interface
+
+## Requirements
+
+- Microsoft Word 2016 or newer
+- Internet connection (for API access)
+
+## How to Use
+
+1. Open Word and access the add-in from Insert > Add-ins > My Add-ins
+2. Enter your API key in the settings section
+3. Type a prompt and click "Generate Text"
+4. Click "Insert into Document" to add the text to your Word document
+
+## API Keys
+
+You'll need to obtain API keys from one of these providers:
+
+- [OpenAI Platform](https://platform.openai.com/account/api-keys)
+- [Azure OpenAI Service](https://azure.microsoft.com/en-us/products/cognitive-services/openai-service)
+- [Google AI Studio](https://makersuite.google.com/) (for Gemini)
+- [Groq](https://console.groq.com/keys)
+
+## Troubleshooting
+
+If the add-in doesn't appear in Word:
+
+1. Make sure Word is completely closed (check Task Manager)
+2. Try running `register.cmd` as administrator
+3. Restart Word and check Insert > Add-ins > My Add-ins
+
+## License
+
+MIT License
+
+# Word GPT Plus
+
+## Installation
+
+1.  Clone the repository.
+2.  Navigate to the project directory.
+3.  Run `npm install` to install dependencies and build the project.
+4.  Follow the instructions in the Microsoft documentation to sideload the add-in into Word.
+
+## Usage
+
+<!-- Add usage instructions here -->

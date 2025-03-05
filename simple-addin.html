@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Super Simple Word Add-in</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+    <script>
+        Office.onReady(function () {
+            document.getElementById('status').textContent = 'Connected to Word!';
+        });
+
+        function insertText() {
+            Office.context.document.setSelectedDataAsync(
+                'Hello World from Word Add-in!',
+                function (result) {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        document.getElementById('result').textContent = 'Text inserted successfully!';
+                    } else {
+                        document.getElementById('result').textContent = 'Error: ' + result.error.message;
+                    }
+                }
+            );
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px;
+            background: #0078d4;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Super Simple Add-in</h2>
+    <p>Status: <span id="status">Loading...</span></p>
+    <button onclick="insertText()">Insert Text</button>
+    <p id="result"></p>
+</body>
+
+</html>

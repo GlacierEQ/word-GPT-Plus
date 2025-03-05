@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word GPT Plus</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        .header {
+            background-color: #2C5F2D;
+            color: white;
+            padding: 15px;
+            margin: -20px -20px 20px -20px;
+            text-align: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .status-bar {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        #status {
+            font-weight: bold;
+            color: #2C5F2D;
+        }
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            font-family: inherit;
+        }
+        button {
+            background-color: #2C5F2D;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #1E3F1F;
+        }
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 15px;
+            border-left: 4px solid #2C5F2D;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        .hidden {
+            display: none;
+        }
+        .api-section {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+    <script>
+        // Global variables
+        let apiKey = localStorage.getItem('apiKey') || '';
+        let apiType = localStorage.getItem('apiType') || 'openai';
+        
+        // Initialize when Office is ready
+        Office.onReady(function() {
+            document.getElementById('status').textContent = 'Connected to Word!';
+            
+            // Load saved settings
+            if (apiKey) {
+                document.getElementById('apiKey').value = apiKey;
+            }
+            
+            const savedApiType = document.getElementById('apiType');
+            if (savedApiType) {
+                savedApiType.value = apiType;
+            }
+            
+            updateApiSection();
+        });
+        
+        // Function to insert text into document
+        function insertText() {
+            const textToInsert = document.getElementById('generatedText').value;
+            if (!textToInsert) return;
+            
+            Office.context.document.setSelectedDataAsync(textToInsert, function(result) {
+                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                    document.getElementById('insertResult').textContent = 'Text inserted successfully!';
+                    document.getElementById('insertResult').className = 'result';
+                } else {
+                    document.getElementById('insertResult').textContent = 'Error: ' + result.error.message;
+                    document.getElementById('insertResult').className = 'result';
+                }
+            });
+        }
+        
+        // Function to generate text using AI
+        async function generateText() {
+            const prompt = document.getElementById('userPrompt').value;
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+            
+            const apiKeyInput = document.getElementById('apiKey').value;
+            if (!apiKeyInput) {
+                alert('Please enter an API key');
+                return;
+            }
+            
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            
+            document.getElementById('generatedText').value = '';
+            document.getElementById('apiResult').className = 'hidden';
+            
+            try {
+                // Create API client
+                const apiClient = new APIClient();
+                apiClient.setApiKey(apiKeyInput);
+                apiClient.setApiType(document.getElementById('apiType').value);
+                
+                const response = await apiClient.generateText(prompt);
+                
+                if (response.success) {
+                    document.getElementById('generatedText').value = response.text;
+                    document.getElementById('apiResult').textContent = 'Text generated successfully!';
+                    document.getElementById('apiResult').className = 'result';
+                } else {
+                    document.getElementById('apiResult').textContent = 'Error: ' + response.message;
+                    document.getElementById('apiResult').className = 'result';
+                }
+            } catch (error) {
+                document.getElementById('apiResult').textContent = 'Error: ' + error.message;
+                document.getElementById('apiResult').className = 'result';
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Text';
+            }
+        }
+        
+        // Function to save API settings
+        function saveSettings() {
+            const newApiKey = document.getElementById('apiKey').value;
+            const newApiType = document.getElementById('apiType').value;
+            
+            localStorage.setItem('apiKey', newApiKey);
+            localStorage.setItem('apiType', newApiType);
+            
+            apiKey = newApiKey;
+            apiType = newApiType;
+            
+            document.getElementById('settingsResult').textContent = 'Settings saved successfully!';
+            document.getElementById('settingsResult').className = 'result';
+            
+            setTimeout(function() {
+                document.getElementById('settingsResult').className = 'hidden';
+            }, 3000);
+        }
+        
+        // Function to update API section based on selected API type
+        function updateApiSection() {
+            const selectedApiType = document.getElementById('apiType').value;
+            const azureSection = document.getElementById('azureSection');
+            
+            if (selectedApiType === 'azure') {
+                azureSection.className = 'api-section';
+            } else {
+                azureSection.className = 'api-section hidden';
+            }
+        }
+        
+        // API Client class
+        class APIClient {
+            constructor() {
+                this.apiKey = '';
+                this.apiType = 'openai'; // default API type
+                this.model = 'gpt-3.5-turbo';
+                this.temperature = 0.7;
+                this.maxTokens = 1000;
+                this.baseUrl = 'https://api.openai.com/v1';
+                this.azureEndpoint = '';
+                this.azureApiVersion = '2023-05-15';
+            }
+            
+            setApiKey(key) {
+                this.apiKey = key;
+            }
+            
+            setApiType(type) {
+                this.apiType = type;
+                
+                // Update baseUrl based on API type
+                switch(type) {
+                    case 'openai':
+                        this.baseUrl = 'https://api.openai.com/v1';
+                        this.model = 'gpt-3.5-turbo';
+                        break;
+                    case 'azure':
+                        this.azureEndpoint = document.getElementById('azureEndpoint').value;
+                        this.model = document.getElementById('azureDeployment').value;
+                        this.baseUrl = `${this.azureEndpoint}/openai/deployments/${this.model}`;
+                        this.azureApiVersion = document.getElementById('azureApiVersion').value || '2023-05-15';
+                        break;
+                    case 'gemini':
+                        this.baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+                        this.model = 'gemini-pro';
+                        break;
+                    case 'groq':
+                        this.baseUrl = 'https://api.groq.com/openai/v1';
+                        this.model = 'llama3-8b-8192';
+                        break;
+                }
+            }
+            
+            async generateText(prompt) {
+                try {
+                    const response = await this.makeRequest(prompt);
+                    return response;
+                } catch (error) {
+                    return {
+                        error: true,
+                        message: error.message || 'Error generating text'
+                    };
+                }
+            }
+            
+            async makeRequest(prompt) {
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                
+                let url, body;
+                
+                // Configure request based on API type
+                switch(this.apiType) {
+                    case 'openai':
+                        url = `${this.baseUrl}/chat/completions`;
+                        headers['Authorization'] = `Bearer ${this.apiKey}`;
+                        body = {
+                            model: this.model,
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: this.temperature,
+                            max_tokens: this.maxTokens
+                        };
+                        break;
+                        
+                    case 'azure':
+                        url = `${this.baseUrl}?api-version=${this.azureApiVersion}`;
+                        headers['api-key'] = this.apiKey;
+                        body = {
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: this.temperature,
+                            max_tokens: this.maxTokens
+                        };
+                        break;
+                        
+                    case 'gemini':
+                        url = `${this.baseUrl}/models/${this.model}:generateContent?key=${this.apiKey}`;
+                        body = {
+                            contents: [{ parts: [{ text: prompt }] }],
+                            generationConfig: {
+                                temperature: this.temperature,
+                                maxOutputTokens: this.maxTokens
+                            }
+                        };
+                        break;
+                        
+                    case 'groq':
+                        url = `${this.baseUrl}/chat/completions`;
+                        headers['Authorization'] = `Bearer ${this.apiKey}`;
+                        body = {
+                            model: this.model,
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: this.temperature,
+                            max_tokens: this.maxTokens
+                        };
+                        break;
+                        
+                    default:
+                        throw new Error(`Unsupported API type: ${this.apiType}`);
+                }
+                
+                // Make the network request
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API request failed: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Process the response based on API type
+                let result;
+                switch(this.apiType) {
+                    case 'openai':
+                    case 'azure':
+                    case 'groq':
+                        result = data.choices[0].message.content;
+                        break;
+                        
+                    case 'gemini':
+                        result = data.candidates[0].content.parts[0].text;
+                        break;
+                }
+                
+                return { success: true, text: result };
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="header">
+        <h1>Word GPT Plus</h1>
+    </div>
+    
+    <div class="status-bar">
+        Status: <span id="status">Connecting to Word...</span>
+    </div>
+    
+    <div class="api-section">
+        <h2>API Settings</h2>
+        <label for="apiType">API Provider:</label>
+        <select id="apiType" onchange="updateApiSection()">
+            <option value="openai">OpenAI</option>
+            <option value="azure">Azure OpenAI</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="groq">Groq</option>
+        </select>
+        
+        <label for="apiKey">API Key:</label>
+        <input type="text" id="apiKey" placeholder="Enter your API key here">
+        
+        <div id="azureSection" class="api-section hidden">
+            <label for="azureEndpoint">Azure Endpoint:</label>
+            <input type="text" id="azureEndpoint" placeholder="https://your-resource.openai.azure.com">
+            
+            <label for="azureDeployment">Deployment Name:</label>
+            <input type="text" id="azureDeployment" placeholder="deployment-name">
+            
+            <label for="azureApiVersion">API Version:</label>
+            <input type="text" id="azureApiVersion" placeholder="2023-05-15" value="2023-05-15">
+        </div>
+        
+        <button onclick="saveSettings()">Save Settings</button>
+        <div id="settingsResult" class="hidden"></div>
+    </div>
+    
+    <div class="api-section">
+        <h2>Generate Text</h2>
+        <label for="userPrompt">Enter your prompt:</label>
+        <textarea id="userPrompt" placeholder="Type your prompt here..."></textarea>
+        
+        <button id="generateBtn" onclick="generateText()">Generate Text</button>
+        <div id="apiResult" class="hidden"></div>
+        
+        <label for="generatedText">Generated text:</label>
+        <textarea id="generatedText" placeholder="Generated content will appear here..."></textarea>
+        
+        <button onclick="insertText()">Insert into Document</button>
+        <div id="insertResult" class="hidden"></div>
+    </div>
+</body>
+</html>

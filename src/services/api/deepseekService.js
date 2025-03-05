@@ -1,4 +1,6 @@
-import { ApiClient, ApiError, withRetry } from './apiClient';
+import { ApiClient } from './apiClient';
+import { startTiming, endTiming } from '../../utils/performance';
+import { getSetting } from '../settings/settingsManager';
 
 /**
  * DeepSeek-specific error class
@@ -24,264 +26,238 @@ class DeepSeekError extends ApiError {
 }
 
 /**
- * DeepSeek API client for vision and language models
+ * DeepSeek API client implementation
  */
 export class DeepSeekClient extends ApiClient {
+    /**
+     * Create a new DeepSeek client
+     * @param {Object} config - Configuration
+     * @param {string} config.apiKey - DeepSeek API key
+     * @param {string} config.baseUrl - Base URL (defaults to DeepSeek's API)
+     * @param {boolean} config.nonCommercial - Whether to use non-commercial mode
+     */
     constructor(config = {}) {
+        // Get the custom endpoint or use the default
+        const baseUrl = config.baseUrl || 'https://api.deepseek.com/v1';
+
         super({
-            baseUrl: config.endpoint || 'https://api.deepseek.com/v1',
-            ...config
+            baseUrl,
+            apiKey: config.apiKey,
+            timeout: config.timeout || 60000, // 60 seconds default
+            provider: 'DeepSeek'
         });
 
-        this.isCommercialUse = config.isCommercialUse !== false;
-        this.allowNonCommercialKeyless = config.allowNonCommercialKeyless === true;
+        this.nonCommercial = config.nonCommercial === true;
+        this.useOpenAIKey = config.useOpenAIKey === true;
     }
 
     /**
-     * Get appropriate API endpoint based on usage type
-     * @returns {string} API endpoint URL
-     * @private
-     */
-    getEndpoint() {
-        // Non-commercial usage without API key goes to the free tier endpoint
-        if (!this.isCommercialUse && !this.apiKey && this.allowNonCommercialKeyless) {
-            return 'https://api-free.deepseek.com/v1';
-        }
-
-        return this.baseUrl;
-    }
-
-    /**
-     * Generate text with DeepSeek language model
-     * @param {string} prompt - Input prompt
+     * Generate text with DeepSeek models
+     * @param {Array<Object>} messages - Chat messages
      * @param {Object} options - Generation options
-     * @returns {Promise<string>} Generated text
+     * @returns {Promise<Object>} Generated text
      */
-    async generateText(prompt, options = {}) {
-        const {
-            model = 'deepseek-chat',
-            temperature = 0.7,
-            maxTokens = 1000,
-            systemPrompt = 'You are a helpful assistant.'
-        } = options;
+    async generateText(messages, options = {}) {
+        startTiming('deepseek.chat');
 
-        const requestDetails = {
-            endpoint: '/chat/completions',
-            model,
-            promptLength: prompt.length
+        const data = {
+            model: options.model || 'deepseek-chat',
+            messages,
+            temperature: options.temperature !== undefined ? options.temperature : 0.7,
+            max_tokens: options.maxTokens || 2048,
+            top_p: options.topP || 1,
+            stream: options.stream || false
         };
 
         try {
-            // Check if we're allowed to make this request
-            if (this.isCommercialUse && !this.apiKey) {
-                throw new DeepSeekError(
-                    'API key required for commercial usage',
-                    403,
-                    requestDetails
-                );
-            }
-
-            // Prepare request body
-            const requestBody = {
-                model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: prompt }
-                ],
-                temperature,
-                max_tokens: maxTokens
-            };
-
-            // Add non-commercial flag if applicable
-            if (!this.isCommercialUse && this.allowNonCommercialKeyless) {
-                requestBody.usage_type = 'non-commercial';
-            }
-
-            // Make the API request with custom headers based on usage type
-            const headers = {};
-
-            // For non-commercial keyless use, add appropriate headers
-            if (!this.apiKey && !this.isCommercialUse && this.allowNonCommercialKeyless) {
-                headers['X-DeepSeek-Usage'] = 'non-commercial';
-                headers['X-DeepSeek-Client'] = 'word-gpt-plus';
-            }
+            // Add non-commercial header if required
+            const headers = this.nonCommercial ?
+                { 'X-DeepSeek-Usage': 'non-commercial' } : {};
 
             const response = await this.request('/chat/completions', {
                 method: 'POST',
-                body: JSON.stringify(requestBody),
-                headers,
-                baseUrl: this.getEndpoint()
+                body: JSON.stringify(data),
+                headers
             });
 
-            return response?.choices?.[0]?.message?.content || '';
+            endTiming('deepseek.chat', {
+                model: data.model,
+                messageCount: messages.length
+            });
+
+            return response;
         } catch (error) {
-            throw this.formatError(error, requestDetails);
+            endTiming('deepseek.chat', { error: true });
+            throw error;
         }
     }
 
     /**
-     * Analyze image using DeepSeek VL model
-     * @param {string} base64Image - Base64-encoded image
-     * @param {string} prompt - Prompt for analysis
-     * @param {Object} options - Analysis options
-     * @returns {Promise<Object>} Analysis results
+     * Analyze an image with DeepSeek Vision Language models
+     * @param {string} imageBase64 - Base64-encoded image
+     * @param {string} prompt - Text prompt for image analysis
+     * @param {Object} options - Generation options
+     * @returns {Promise<Object>} Analysis result
      */
-    async analyzeImage(base64Image, prompt, options = {}) {
-        const {
-            model = 'deepseek-vl-2.0-base',
-            temperature = 0.2,
-            maxTokens = 2000,
-            analysisType = 'general'
-        } = options;
+    async analyzeImage(imageBase64, prompt, options = {}) {
+        startTiming('deepseek.vision');
 
-        // Select appropriate system prompt based on analysis type
-        let systemPrompt = "You are a professional image analyst with expertise in visual detail extraction.";
+        // Make sure the image is properly formatted for the API
+        const imageUrl = imageBase64.startsWith('data:image')
+            ? imageBase64
+            : `data:image/jpeg;base64,${imageBase64}`;
 
-        if (analysisType === 'home_inspection') {
-            systemPrompt = "You are a certified home inspector with 20+ years of experience analyzing property conditions. Focus on identifying potential issues, code violations, safety concerns, and maintenance needs.";
-        } else if (analysisType === 'legal_evidence') {
-            systemPrompt = "You are a forensic image analyst with legal expertise. Provide objective, factual descriptions without speculation or opinion. Focus on elements that could be legally relevant.";
-        } else if (analysisType === 'property_damage') {
-            systemPrompt = "You are an insurance claim adjuster specializing in property damage assessment. Provide detailed analysis of visible damage, affected materials, and estimated severity.";
-        }
+        const messages = [
+            {
+                role: 'system',
+                content: options.systemPrompt || 'You are a helpful assistant that analyzes images.'
+            },
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: prompt || 'Describe this image in detail.' },
+                    {
+                        type: 'image_url',
+                        image_url: {
+                            url: imageUrl
+                        }
+                    }
+                ]
+            }
+        ];
 
-        const requestDetails = {
-            endpoint: '/chat/completions',
-            model,
-            imageAnalysis: true,
-            analysisType
+        const data = {
+            model: options.model || 'deepseek-vl-2.0-base',
+            messages,
+            temperature: options.temperature !== undefined ? options.temperature : 0.7,
+            max_tokens: options.maxTokens || 4096
         };
 
         try {
-            // Check commercial use requirements
-            if (this.isCommercialUse && !this.apiKey) {
-                throw new DeepSeekError(
-                    'API key required for commercial usage',
-                    403,
-                    requestDetails
-                );
-            }
-
-            // Prepare request body
-            const requestBody = {
-                model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'text',
-                                text: prompt || 'Please analyze this image thoroughly and provide detailed observations.'
-                            },
-                            {
-                                type: 'image_url',
-                                image_url: { url: `data:image/jpeg;base64,${base64Image}` }
-                            }
-                        ]
-                    }
-                ],
-                temperature,
-                max_tokens: maxTokens
-            };
-
-            // Add non-commercial usage flag if applicable
-            if (!this.isCommercialUse && this.allowNonCommercialKeyless) {
-                requestBody.usage_type = 'non-commercial';
-            }
-
-            // Custom headers for non-commercial usage
-            const headers = {};
-            if (!this.apiKey && !this.isCommercialUse && this.allowNonCommercialKeyless) {
-                headers['X-DeepSeek-Usage'] = 'non-commercial';
-                headers['X-DeepSeek-Client'] = 'word-gpt-plus';
-            }
+            // Add non-commercial header if required
+            const headers = this.nonCommercial ?
+                { 'X-DeepSeek-Usage': 'non-commercial' } : {};
 
             const response = await this.request('/chat/completions', {
                 method: 'POST',
-                body: JSON.stringify(requestBody),
-                headers,
-                baseUrl: this.getEndpoint()
+                body: JSON.stringify(data),
+                headers
+            });
+
+            endTiming('deepseek.vision', { model: data.model });
+            return response;
+        } catch (error) {
+            endTiming('deepseek.vision', { error: true });
+            throw error;
+        }
+    }
+
+    /**
+     * Check if API key is valid and has commercial access
+     * @returns {Promise<Object>} Status info
+     */
+    async checkApiAccess() {
+        try {
+            // Make a minimal request to check authentication
+            const messages = [
+                { role: 'user', content: 'Hello' }
+            ];
+
+            const data = {
+                model: 'deepseek-chat',
+                messages,
+                max_tokens: 5
+            };
+
+            await this.request('/chat/completions', {
+                method: 'POST',
+                body: JSON.stringify(data)
             });
 
             return {
-                analysis: response?.choices?.[0]?.message?.content || '',
-                model,
-                usage: response.usage,
-                keyless: !this.apiKey && !this.isCommercialUse
+                valid: true,
+                commercial: true,
+                message: 'API key is valid and has commercial access.'
             };
         } catch (error) {
-            throw this.formatError(error, requestDetails);
-        }
-    }
+            if (error.statusCode === 401) {
+                return {
+                    valid: false,
+                    commercial: false,
+                    message: 'Invalid API key.'
+                };
+            }
 
-    /**
-     * Generate text with retry mechanism
-     * @param {string} prompt - Text prompt
-     * @param {Object} options - Generation options
-     * @returns {Promise<string>} Generated text
-     */
-    async generateTextWithRetry(prompt, options = {}) {
-        return withRetry(
-            async (attempt) => {
+            if (error.statusCode === 403) {
+                // Try with non-commercial header
                 try {
-                    return await this.generateText(prompt, options);
-                } catch (error) {
-                    error.requestInfo = {
-                        ...error.requestInfo,
-                        attempt
+                    const messages = [
+                        { role: 'user', content: 'Hello' }
+                    ];
+
+                    const data = {
+                        model: 'deepseek-chat',
+                        messages,
+                        max_tokens: 5
                     };
-                    throw error;
-                }
-            },
-            {
-                maxRetries: options.maxRetries || 3,
-                shouldRetry: (error) => {
-                    // Don't retry auth errors or commercial use violations
-                    if (error.isAuthError() || error.message.includes('commercial_use_required')) {
-                        return false;
-                    }
-                    return error.isServerError() || error.isRateLimitError() || error.isTimeout();
+
+                    await this.request('/chat/completions', {
+                        method: 'POST',
+                        body: JSON.stringify(data),
+                        headers: {
+                            'X-DeepSeek-Usage': 'non-commercial'
+                        }
+                    });
+
+                    return {
+                        valid: true,
+                        commercial: false,
+                        message: 'API key is valid but only has non-commercial access.'
+                    };
+                } catch (innerError) {
+                    return {
+                        valid: false,
+                        commercial: false,
+                        message: 'API key does not have access to DeepSeek services.'
+                    };
                 }
             }
-        );
-    }
 
-    /**
-     * Format error to DeepSeek-specific error type
-     * @param {Error} error - Original error
-     * @param {Object} requestDetails - Request details
-     * @returns {DeepSeekError} Formatted error
-     */
-    formatError(error, requestDetails) {
-        if (error instanceof DeepSeekError) {
-            return error;
+            return {
+                valid: false,
+                commercial: false,
+                message: `Error checking API key: ${error.message}`
+            };
         }
-
-        if (error instanceof ApiError) {
-            return new DeepSeekError(
-                error.message,
-                error.statusCode,
-                {
-                    ...error.requestInfo,
-                    ...requestDetails
-                }
-            );
-        }
-
-        return new DeepSeekError(
-            error.message,
-            0,
-            requestDetails
-        );
     }
 }
 
 /**
- * Create a preconfigured DeepSeek client
- * @param {Object} config - Configuration options
- * @returns {DeepSeekClient} Configured client
+ * Create a DeepSeek client based on current settings
+ * @returns {DeepSeekClient} DeepSeek client
  */
-export const createDeepSeekClient = (config = {}) => {
-    return new DeepSeekClient(config);
-};
+export function createDeepSeekClient() {
+    const useNonCommercial = getSetting('usage.deepseekNonCommercial', true);
+    const useSeperateKey = getSetting('usage.useSeperateDeepseekKey', false);
+    const deepseekEndpoint = getSetting('usage.deepseekEndpoint', 'https://api.deepseek.com/v1');
+
+    // Determine which API key to use
+    let apiKey;
+    if (useNonCommercial) {
+        apiKey = null; // No API key needed for non-commercial
+    } else if (useSeperateKey) {
+        apiKey = getSetting('apiKeys.deepseek');
+    } else {
+        apiKey = getSetting('apiKeys.openai'); // Fall back to OpenAI key
+    }
+
+    return new DeepSeekClient({
+        apiKey,
+        baseUrl: deepseekEndpoint,
+        nonCommercial: useNonCommercial,
+        useOpenAIKey: !useSeperateKey && !useNonCommercial
+    });
+}
+
+// Export a singleton instance
+export const deepseek = createDeepSeekClient();

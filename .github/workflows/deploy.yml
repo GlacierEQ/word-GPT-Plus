@@ -1,0 +1,109 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test
+
+    - name: Build
+      run: npm run build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+
+  test-office-validation:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+
+    - name: Install Office Add-in Validator
+      run: npm install -g office-addin-validator
+
+    - name: Validate Office Add-in
+      run: office-addin-validator validate manifest.xml
+
+  deploy-dev:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build, test-office-validation]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+
+    - name: Deploy to Azure Blob Storage (Dev)
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          az storage blob upload-batch --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT }} --auth-mode key --account-key ${{ secrets.AZURE_STORAGE_KEY }} --destination '$web' --source ./dist --overwrite
+
+    - name: Purge CDN endpoint
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          az cdn endpoint purge --content-paths "/*" --profile-name ${{ secrets.AZURE_CDN_PROFILE }} --name ${{ secrets.AZURE_CDN_ENDPOINT }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+  deploy-prod:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, test-office-validation]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
+        
+    - name: Deploy to Azure Blob Storage (Prod)
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          az storage blob upload-batch --account-name ${{ secrets.AZURE_STORAGE_ACCOUNT_PROD }} --auth-mode key --account-key ${{ secrets.AZURE_STORAGE_KEY_PROD }} --destination '$web' --source ./dist --overwrite
+
+    - name: Purge CDN endpoint
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          az cdn endpoint purge --content-paths "/*" --profile-name ${{ secrets.AZURE_CDN_PROFILE_PROD }} --name ${{ secrets.AZURE_CDN_ENDPOINT_PROD }} --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PROD }}

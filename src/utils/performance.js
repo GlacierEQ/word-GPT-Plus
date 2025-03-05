@@ -1,9 +1,79 @@
 /**
- * Utilities for tracking performance in Word-GPT-Plus
+ * Performance monitoring utilities for Word-GPT-Plus
  */
 
-// Store for timing data
+// Store for timing measurements
 const timings = {};
+
+/**
+ * Start timing a named operation
+ * @param {string} name - Operation name
+ */
+export function startTiming(name) {
+    timings[name] = {
+        start: performance.now(),
+        end: null,
+        duration: null
+    };
+}
+
+/**
+ * End timing a named operation and record duration
+ * @param {string} name - Operation name
+ * @returns {number|null} Duration in milliseconds
+ */
+export function endTiming(name) {
+    if (!timings[name] || !timings[name].start) {
+        console.warn(`No timing started for "${name}"`);
+        return null;
+    }
+
+    timings[name].end = performance.now();
+    timings[name].duration = timings[name].end - timings[name].start;
+
+    // Log the timing in development mode
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`🕒 ${name}: ${timings[name].duration.toFixed(2)}ms`);
+    }
+
+    return timings[name].duration;
+}
+
+/**
+ * Measure async operation duration
+ * @param {Function} fn - Async function to measure
+ * @param {string} name - Operation name
+ * @returns {Promise<*>} Result of the async function
+ */
+export async function measureAsync(fn, name) {
+    startTiming(name);
+    try {
+        return await fn();
+    } finally {
+        endTiming(name);
+    }
+}
+
+/**
+ * Get all recorded timings
+ * @returns {Object} Timing measurements
+ */
+export function getAllTimings() {
+    return { ...timings };
+}
+
+/**
+ * Clear all timing measurements
+ */
+export function clearTimings() {
+    Object.keys(timings).forEach(key => {
+        delete timings[key];
+    });
+}
+
+/**
+ * Utilities for tracking performance in Word-GPT-Plus
+ */
 
 // Store for resource tracking
 export const resourceTracker = {
@@ -43,73 +113,6 @@ export const resourceTracker = {
         this.resources.clear();
     }
 };
-
-/**
- * Start timing an operation
- * @param {string} operationName - Name of the operation to time
- */
-export function startTiming(operationName) {
-    if (!window.performance) return;
-
-    if (!timings[operationName]) {
-        timings[operationName] = {
-            count: 0,
-            totalTime: 0,
-            min: Number.MAX_SAFE_INTEGER,
-            max: 0,
-            current: null,
-            avg: 0,
-            lastTimestamp: 0
-        };
-    }
-
-    timings[operationName].current = performance.now();
-    timings[operationName].lastTimestamp = Date.now();
-}
-
-/**
- * End timing an operation
- * @param {string} operationName - Name of the operation
- * @param {Object} metadata - Additional metadata about the operation
- */
-export function endTiming(operationName, metadata = {}) {
-    if (!window.performance || !timings[operationName] || timings[operationName].current === null) return;
-
-    const end = performance.now();
-    const elapsed = end - timings[operationName].current;
-
-    // Update timing stats
-    timings[operationName].count++;
-    timings[operationName].totalTime += elapsed;
-    timings[operationName].min = Math.min(timings[operationName].min, elapsed);
-    timings[operationName].max = Math.max(timings[operationName].max, elapsed);
-    timings[operationName].avg = timings[operationName].totalTime / timings[operationName].count;
-    timings[operationName].current = null;
-
-    // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
-        console.debug(`Performance: ${operationName} took ${elapsed.toFixed(2)}ms`, metadata);
-    }
-}
-
-/**
- * Get timing statistics
- * @param {string} operationName - Optional name to get stats for a specific operation
- * @returns {Object} Timing statistics
- */
-export function getTimingStats(operationName = null) {
-    if (operationName) {
-        return timings[operationName] || null;
-    }
-
-    // Return all timing stats
-    const results = {};
-    Object.keys(timings).forEach(key => {
-        results[key] = { ...timings[key] };
-    });
-
-    return results;
-}
 
 /**
  * Measure memory usage

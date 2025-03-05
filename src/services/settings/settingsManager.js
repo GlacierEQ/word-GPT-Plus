@@ -1,186 +1,212 @@
 /**
- * Settings management system for Word-GPT-Plus
+ * Settings Manager for Word-GPT-Plus
+ * 
+ * Provides functionality to get, set, and manage user settings
+ * with persistence across browser sessions
  */
-import { encryptData, decryptData } from '../../utils/security';
 
-// Schema definition for settings
-export const SettingsSchema = {
+// Default settings
+const DEFAULT_SETTINGS = {
     apiKeys: {
-        openai: { type: 'string', sensitive: true },
-        azure: { type: 'string', sensitive: true },
-        deepseek: { type: 'string', sensitive: true },
-        gemini: { type: 'string', sensitive: true },
-        groq: { type: 'string', sensitive: true }
-    },
-    endpoints: {
-        deepseek: { type: 'string', default: 'https://api.deepseek.com/v1' },
-        ollama: { type: 'string', default: 'http://localhost:11434/api' }
+        openai: '',
+        deepseek: '',
+        anthropic: '',
+        groq: '',
+        azure: ''
     },
     models: {
-        preferredTextModel: { type: 'string', default: 'gpt-4' },
-        preferredImageModel: { type: 'string', default: 'deepseek-vl-2.0-base' }
-    },
-    features: {
-        memoryEnabled: { type: 'boolean', default: true },
-        contextualAwareness: { type: 'boolean', default: true },
-        errorDetection: { type: 'boolean', default: true }
+        preferredTextModel: 'gpt-4',
+        preferredImageModel: 'deepseek-vl-2.0-base'
     },
     usage: {
-        deepseekNonCommercial: { type: 'boolean', default: false },
-        useSeperateDeepseekKey: { type: 'boolean', default: false },
-        embedModelEnabled: { type: 'boolean', default: true },
-        ollamaEnabled: { type: 'boolean', default: false }
+        deepseekNonCommercial: true,
+        useSeperateDeepseekKey: false,
+        deepseekEndpoint: 'https://api.deepseek.com/v1',
+        embedModelEnabled: true
     },
-    security: {
-        storeKeysInMemoryOnly: { type: 'boolean', default: false },
-        encryptStoredKeys: { type: 'boolean', default: true }
+    generation: {
+        temperature: 0.7,
+        maxTokens: 2048,
+        contextSize: 3
+    },
+    memory: {
+        enabled: true,
+        promptIncludeCount: 3
+    },
+    features: {
+        contextualAwareness: true,
+        errorDetection: true,
+        autoPromptEnhancement: true
+    },
+    system: {
+        lastUpdateCheck: null,
+        updateCheckInterval: 86400000, // 24 hours in ms
+        autoUpdate: true,
+        telemetry: false,
+        updateInProgress: false
+    },
+    ui: {
+        theme: 'light',
+        fontSize: 14,
+        expandedSettings: false,
+        showAdvancedOptions: false
     }
 };
 
+// Sensitive keys that should be handled with extra care
+const SENSITIVE_KEYS = [
+    'apiKeys.openai',
+    'apiKeys.anthropic',
+    'apiKeys.deepseek',
+    'apiKeys.azure',
+    'apiKeys.groq'
+];
+
 /**
- * Settings Manager class for handling application settings
+ * Get the current settings storage
+ * @returns {Object} Storage interface
  */
-export class SettingsManager {
-    constructor(schema = SettingsSchema, storage = localStorage) {
-        this.schema = schema;
-        this.storage = storage;
-        this.memoryOnlySettings = new Map();
+function getStorage() {
+    // For browser environments, use localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage;
     }
 
-    /**
-     * Retrieve a setting by key path
-     * @param {string} keyPath - Dot-notation path to setting
-     * @param {any} defaultValue - Default value if setting not found
-     * @returns {any} Setting value
-     */
-    get(keyPath, defaultValue = null) {
-        const [category, key] = keyPath.split('.');
+    // Fallback for server-side or testing
+    const memoryStorage = {};
+    return {
+        getItem: key => memoryStorage[key] || null,
+        setItem: (key, value) => {
+            memoryStorage[key] = value;
+        },
+        removeItem: key => {
+            delete memoryStorage[key];
+        }
+    };
+}
 
-        // Check memory-only settings first
-        if (this.memoryOnlySettings.has(keyPath)) {
-            return this.memoryOnlySettings.get(keyPath);
+/**
+ * Get a setting by its path
+ * @param {string} path - The dot-notation path to the setting
+ * @param {*} defaultValue - Default value if not found
+ * @returns {*} The setting value
+ */
+export function getSetting(path, defaultValue = null) {
+    try {
+        const storage = getStorage();
+        const pathParts = path.split('.');
+        const topLevelKey = pathParts[0];
+
+        // Get the top-level object
+        const storedValue = storage.getItem(`word-gpt-plus.${topLevelKey}`);
+        if (!storedValue) {
+            // Check if there's a default
+            return getDefaultSetting(path, defaultValue);
         }
 
-        try {
-            // Get schema info
-            const schemaItem = this.schema[category]?.[key];
+        // Parse stored value
+        const parsedValue = JSON.parse(storedValue);
 
-            // If key doesn't exist in schema, return default
-            if (!schemaItem) return defaultValue;
-
-            // Get stored value
-            const categoryData = this.storage.getItem(category);
-            if (!categoryData) {
-                return schemaItem.default !== undefined ? schemaItem.default : defaultValue;
-            }
-
-            const parsedData = JSON.parse(categoryData);
-
-            // If key doesn't exist in stored data
-            if (parsedData[key] === undefined) {
-                return schemaItem.default !== undefined ? schemaItem.default : defaultValue;
-            }
-
-            // For sensitive data, decrypt if needed
-            if (schemaItem.sensitive && parsedData[key]?.encrypted) {
-                return this.decryptValue(parsedData[key].data);
-            }
-
-            return parsedData[key];
-        } catch (e) {
-            console.error('Error retrieving setting:', e);
-
-            // Try to get schema default, otherwise return provided default
-            const schemaDefault = this.schema[category]?.[key]?.default;
-            return schemaDefault !== undefined ? schemaDefault : defaultValue;
+        // Return entire object if no further path parts
+        if (pathParts.length === 1) {
+            return parsedValue;
         }
+
+        // Traverse the object path
+        let current = parsedValue;
+        for (let i = 1; i < pathParts.length; i++) {
+            if (current === undefined || current === null) {
+                return getDefaultSetting(path, defaultValue);
+            }
+            current = current[pathParts[i]];
+        }
+
+        // Return value or default
+        return current !== undefined ? current : getDefaultSetting(path, defaultValue);
+    } catch (error) {
+        console.error(`Error getting setting at path "${path}":`, error);
+        return getDefaultSetting(path, defaultValue);
     }
+}
 
-    /**
-     * Save a setting value
-     * @param {string} keyPath - Dot-notation path to setting
-     * @param {any} value - Value to store
-     * @param {boolean} persistToStorage - Whether to save to persistent storage
-     * @returns {boolean} Success status
-     */
-    set(keyPath, value, persistToStorage = true) {
-        const [category, key] = keyPath.split('.');
+/**
+ * Get a setting from defaults
+ * @param {string} path - The dot-notation path to the setting
+ * @param {*} fallback - Fallback value if not in defaults
+ * @returns {*} The default value
+ */
+function getDefaultSetting(path, fallback = null) {
+    try {
+        const pathParts = path.split('.');
 
-        // Validate against schema
-        if (!this.schema[category] || !this.schema[category][key]) {
-            console.warn(`Setting ${keyPath} not defined in schema`);
-            return false;
+        let current = DEFAULT_SETTINGS;
+        for (const part of pathParts) {
+            if (current === undefined || current === null) {
+                return fallback;
+            }
+            current = current[part];
         }
 
-        // Check if this should be memory-only
-        const storeInMemoryOnly =
-            this.get('security.storeKeysInMemoryOnly') &&
-            this.schema[category][key].sensitive;
+        return current !== undefined ? current : fallback;
+    } catch (error) {
+        return fallback;
+    }
+}
 
-        if (storeInMemoryOnly || !persistToStorage) {
-            this.memoryOnlySettings.set(keyPath, value);
-            return true;
+/**
+ * Update a setting by its path
+ * @param {string} path - The dot-notation path to the setting
+ * @param {*} value - New value to set
+ * @returns {boolean} Success status
+ */
+export function updateSetting(path, value) {
+    try {
+        const storage = getStorage();
+        const pathParts = path.split('.');
+        const topLevelKey = pathParts[0];
+
+        // Handle sensitive data
+        if (SENSITIVE_KEYS.includes(path)) {
+            // You could add encryption here
+            console.log('Storing sensitive data for path:', path);
         }
 
-        try {
-            // Get current category data
-            const categoryData = this.storage.getItem(category);
-            const parsedData = categoryData ? JSON.parse(categoryData) : {};
+        // Get current stored value for this top level
+        const currentStored = storage.getItem(`word-gpt-plus.${topLevelKey}`);
+        let currentValue = currentStored ? JSON.parse(currentStored) : {};
 
-            // Process value based on schema
-            if (this.schema[category][key].sensitive && this.get('security.encryptStoredKeys')) {
-                parsedData[key] = {
-                    encrypted: true,
-                    data: this.encryptValue(value)
-                };
-            } else {
-                parsedData[key] = value;
+        // If it's just the top level, replace the object
+        if (pathParts.length === 1) {
+            currentValue = value;
+        } else {
+            // Traverse and update nested property
+            let current = currentValue;
+            for (let i = 1; i < pathParts.length - 1; i++) {
+                const part = pathParts[i];
+                if (!current[part] || typeof current[part] !== 'object') {
+                    current[part] = {};
+                }
+                current = current[part];
             }
 
-            // Store back to storage
-            this.storage.setItem(category, JSON.stringify(parsedData));
-            return true;
-        } catch (e) {
-            console.error('Error saving setting:', e);
-            return false;
+            // Set the value at the final path
+            current[pathParts[pathParts.length - 1]] = value;
         }
-    }
 
-    /**
-     * Get all settings
-     * @returns {Object} All settings grouped by category
-     */
-    getAll() {
-        const settings = {};
+        // Store the updated value
+        storage.setItem(`word-gpt-plus.${topLevelKey}`, JSON.stringify(currentValue));
 
-        // Process each category from schema
-        Object.keys(this.schema).forEach(category => {
-            settings[category] = {};
-
-            // Process each key in category
-            Object.keys(this.schema[category]).forEach(key => {
-                settings[category][key] = this.get(`${category}.${key}`);
+        // Trigger update event for reactive components
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('word-gpt-plus-settings-changed', {
+                detail: { path, value }
             });
-        });
+            window.dispatchEvent(event);
+        }
 
-        return settings;
-    }
-
-    /**
-     * Encrypt a value
-     * @param {any} value - Value to encrypt
-     * @returns {string} Encrypted value
-     */
-    encryptValue(value) {
-        return encryptData(value);
-    }
-
-    /**
-     * Decrypt a value
-     * @param {string} encryptedValue - Encrypted value to decrypt
-     * @returns {any} Decrypted value
-     */
-    decryptValue(encryptedValue) {
-        return decryptData(encryptedValue);
+        return true;
+    } catch (error) {
+        console.error(`Error updating setting at path "${path}":`, error);
+        return false;
     }
 }
