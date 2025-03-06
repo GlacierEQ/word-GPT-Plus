@@ -142,72 +142,108 @@ Give a ⭐️ if this project helped you!
 
 # Word GPT Plus
 
-A simple, no-server Microsoft Word add-in that integrates OpenAI, Azure OpenAI, Google Gemini, and Groq APIs directly within Word.
-
-## Ultra Simple Installation (2 Steps)
-
-1. **Download this repository** to your computer
-
-2. **Run `register.cmd`** by double-clicking it
-   - This creates the manifest file and registers the add-in with Word
-   - If you get a security warning, click "Run" or "Yes"
-
-That's it! Now open Microsoft Word and find the add-in under Insert > Add-ins > My Add-ins.
+Advanced AI assistant for Microsoft Word with local models and recursive optimization
 
 ## Features
 
-- Works without a server - runs completely locally
-- Supports multiple AI providers:
-  - OpenAI API
-  - Azure OpenAI API
-  - Google Gemini API
-  - Groq API
-- Generate text based on your prompts
-- Insert AI-generated content directly into your document
-- Settings are saved between sessions
-- Minimalist interface
-
-## Requirements
-
-- Microsoft Word 2016 or newer
-- Internet connection (for API access)
-
-## How to Use
-
-1. Open Word and access the add-in from Insert > Add-ins > My Add-ins
-2. Enter your API key in the settings section
-3. Type a prompt and click "Generate Text"
-4. Click "Insert into Document" to add the text to your Word document
-
-## API Keys
-
-You'll need to obtain API keys from one of these providers:
-
-- [OpenAI Platform](https://platform.openai.com/account/api-keys)
-- [Azure OpenAI Service](https://azure.microsoft.com/en-us/products/cognitive-services/openai-service)
-- [Google AI Studio](https://makersuite.google.com/) (for Gemini)
-- [Groq](https://console.groq.com/keys)
-
-## Troubleshooting
-
-If the add-in doesn't appear in Word:
-
-1. Make sure Word is completely closed (check Task Manager)
-2. Try running `register.cmd` as administrator
-3. Restart Word and check Insert > Add-ins > My Add-ins
-
-## License
-
-MIT License
-
-# Word GPT Plus
+- 🚀 **Multiverse Writing**: Generate multiple variations of text in different styles
+- 🔍 **Recursive Optimization**: Iteratively improve content quality through AI feedback cycles
+- 🧠 **Local Models**: Support for running local AI models for privacy and offline use
+- 📊 **Quality Standards**: Built-in quality metrics and standards enforcement
+- 🏢 **Enterprise Security**: Advanced security protocols for sensitive content
+- 📋 **Workflow Automation**: Automated document improvement workflows
+- 📈 **Analytics Dashboard**: Track usage and quality metrics
 
 ## Installation
 
-1.  Clone the repository.
-2.  Navigate to the project directory.
-3.  Run `npm install` to install dependencies and build the project.
-4.  Follow the instructions in the Microsoft documentation to sideload the add-in into Word.
+### Requirements
+
+- Microsoft Word 2016 or later
+- Windows 10/11 or macOS 10.15+
+- For local models: 8GB+ RAM, 10GB+ disk space
+
+### Quick Start
+
+1. **Download the add-in package**
+   - Download the latest release from the Releases page
+
+2. **Install the add-in in Word**
+   - Open Word
+   - Go to Insert > Add-ins > My Add-ins
+   - Choose "Upload My Add-in" and select the downloaded manifest file
+
+3. **Configuration**
+   - When first launched, choose your preferred AI provider
+   - For API models: Enter your API key
+   - For local models: Download your preferred model when prompted
+
+## Using Word GPT Plus
+
+### Content Generation
+
+1. Place your cursor where you want to insert content
+2. Open the Word GPT Plus sidebar
+3. Enter your prompt in the "Generate" tab
+4. Click "Generate" to create content
+5. Click "Insert" to add the content to your document
+
+### Multiverse Writing
+
+1. Select text you want to transform
+2. Go to the "Multiverse" tab
+3. Choose your desired style variations
+4. Click "Generate Variants"
+5. Select your preferred version to insert
+
+### Perfect Text
+
+1. Select text you want to optimize
+2. Go to the "Perfect" tab
+3. Choose optimization options
+4. Click "Perfect Selected Text"
+5. Review and insert the improved version
+
+### Quality Analytics
+
+1. Go to the "Analytics" tab to view document quality metrics
+2. See suggestions for improvement
+3. Track your writing quality over time
+
+## Advanced Features
+
+### Local Model Management
+
+Word GPT Plus supports several quantized local models:
+
+- Llama 2 (7B 4-bit)
+- Mistral (7B 4-bit)
+- Phi-2 (4-bit)
+
+Download and manage models in the Settings tab.
+
+### Security Options
+
+- **Content Scanning**: Automatically detect sensitive information
+- **Data Minimization**: Remove unnecessary personal data
+- **Encryption**: Secure API keys and sensitive content
+
+### Adaptive Learning
+
+The add-in learns from your preferences over time:
+
+- Writing style preferences
+- Content density preferences
+- Content format preferences
+- Frequently used concepts
+
+## Development
+
+### Building from Source
+
+1. Clone the repository.
+2. Navigate to the project directory.
+3. Run `npm install` to install dependencies and build the project.
+4. Follow the instructions in the Microsoft documentation to sideload the add-in into Word.
 
 ## Usage
 

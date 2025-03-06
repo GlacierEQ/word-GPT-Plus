@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word GPT Plus - Test Page</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        header {
+            background-color: #0078d4;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #106ebe;
+        }
+
+        .result-panel {
+            background-color: #f0f0f0;
+            border-left: 4px solid #0078d4;
+            padding: 15px;
+            border-radius: 0 4px 4px 0;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .status.success {
+            background-color: #dff6dd;
+            border: 1px solid #107c10;
+        }
+
+        .status.error {
+            background-color: #fde7e9;
+            border: 1px solid #d13438;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .config-form {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+
+    <!-- Office.js -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+    <!-- Core scripts -->
+    <script src="src/system-init.js"></script>
+    <script src="src/quality-standards.js"></script>
+    <script src="src/api-client.js"></script>
+    <script src="src/test-runner.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Word GPT Plus - Core Functionality Test Page</h1>
+        </header>
+
+        <div class="card section">
+            <h2>Configuration</h2>
+            <div class="config-form">
+                <label for="api-provider">API Provider:</label>
+                <select id="api-provider">
+                    <option value="openai">OpenAI</option>
+                    <option value="azure">Azure OpenAI</option>
+                    <option value="localServer">Local Server</option>
+                </select>
+
+                <label for="api-key">API Key:</label>
+                <input type="password" id="api-key" placeholder="Enter API key">
+
+                <label></label>
+                <button onclick="saveConfig()">Save Configuration</button>
+            </div>
+        </div>
+
+        <div class="card section">
+            <h2>Component Status</h2>
+            <div id="component-status">Loading component status...</div>
+        </div>
+
+        <div class="card section">
+            <h2>Core Functionality Tests</h2>
+            <div class="test-controls">
+                <button onclick="testRunner.runAllTests()">Run All Tests</button>
+                <button onclick="clearResults()">Clear Results</button>
+            </div>
+
+            <div id="test-results" class="result-panel">
+                Test results will appear here...
+            </div>
+        </div>
+
+        <div class="card section">
+            <h2>Manual Testing</h2>
+
+            <div class="manual-test">
+                <h3>Text Generation Test</h3>
+                <div>
+                    <textarea id="prompt-input" rows="3" style="width: 100%; margin-bottom: 10px"
+                        placeholder="Enter a prompt for text generation..."></textarea>
+                    <button onclick="testTextGeneration()">Generate Text</button>
+                </div>
+                <div id="generation-result" class="result-panel" style="margin-top: 10px">
+                    Generation results will appear here...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Office and setup
+        Office.onReady(function (info) {
+            if (info.host === Office.HostType.Word) {
+                document.getElementById('component-status').innerHTML = 'Office.js initialized for Word ✓';
+
+                // Initialize test runner
+                testRunner.initialize(document.getElementById('test-results'));
+
+                // Load configuration
+                loadConfig();
+
+                // Check component status
+                checkComponentStatus();
+            } else {
+                document.getElementById('component-status').innerHTML =
+                    '<div class="status error">Error: This page must be loaded within Microsoft Word</div>';
+            }
+        });
+
+        // Save API configuration
+        function saveConfig() {
+            const provider = document.getElementById('api-provider').value;
+            const apiKey = document.getElementById('api-key').value;
+
+            // Save to API client
+            if (window.apiClient) {
+                window.apiClient.setApiKey(provider, apiKey);
+                window.apiClient.setActiveProvider(provider);
+
+                document.getElementById('component-status').innerHTML +=
+                    '<div class="status success">Configuration saved successfully</div>';
+            } else {
+                document.getElementById('component-status').innerHTML +=
+                    '<div class="status error">Error: API client not available</div>';
+            }
+        }
+
+        // Load API configuration
+        function loadConfig() {
+            if (window.apiClient) {
+                const provider = window.apiClient.apiConfig.activeProvider;
+                document.getElementById('api-provider').value = provider || 'openai';
+
+                // Don't show the actual API key for security reasons
+                document.getElementById('api-key').placeholder =
+                    window.apiClient.apiConfig.keys[provider] ? '(API key configured)' : 'Enter API key';
+            }
+        }
+
+        // Check component status
+        function checkComponentStatus() {
+            let statusHTML = '<ul>';
+
+            // Check each component
+            const components = {
+                'Office.js': !!window.Office,
+                'API Client': !!window.apiClient,
+                'Quality Standards': !!window.qualityStandards,
+                'System Initializer': !!window.systemInitializer,
+                'Test Runner': !!window.testRunner
+            };
+
+            Object.entries(components).forEach(([name, available]) => {
+                const icon = available ? '✓' : '✗';
+                const color = available ? 'green' : 'red';
+                statusHTML += `<li style="color: ${color}">${icon} ${name}</li>`;
+            });
+
+            statusHTML += '</ul>';
+            document.getElementById('component-status').innerHTML = statusHTML;
+        }
+
+        // Clear test results
+        function clearResults() {
+            document.getElementById('test-results').innerHTML =
+                'Test results will appear here...';
+        }
+
+        // Test text generation
+        async function testTextGeneration() {
+            const promptInput = document.getElementById('prompt-input').value;
+            const resultElement = document.getElementById('generation-result');
+
+            if (!promptInput) {
+                resultElement.innerHTML = 'Please enter a prompt';
+                return;
+            }
+
+            resultElement.innerHTML = 'Generating...';
+
+            try {
+                if (!window.apiClient) {
+                    throw new Error('API client not available');
+                }
+
+                const result = await window.apiClient.generateText(promptInput, { maxTokens: 150 });
+                resultElement.innerHTML = `<strong>Result:</strong>\n\n${result}`;
+
+            } catch (error) {
+                resultElement.innerHTML = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+
+</html>

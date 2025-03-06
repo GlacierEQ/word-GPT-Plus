@@ -1,0 +1,77 @@
+{
+    "appName": "Word GPT Plus",
+    "version": "1.0.0",
+    "description": "Advanced AI assistant for Microsoft Word",
+    "publisher": "WordGPT Plus Team",
+    "website": "https://wordgptplus.com",
+    "support": "support@wordgptplus.com",
+    "license": "MIT",
+    "officeSuiteMinVersion": "16.0.0.0",
+    "nodeMinVersion": "12.0.0",
+    "npmMinVersion": "6.0.0",
+    "installationSteps": [
+        "checkRequirements",
+        "installDependencies",
+        "buildProject",
+        "configureApiSettings",
+        "registerAddIn"
+    ],
+    "components": {
+        "core": [
+            "quality-manager.js",
+            "recursive-optimizer.js",
+            "multiverse-writing.js",
+            "intelligent-features.js",
+            "ui-components.js"
+        ],
+        "utilities": [
+            "document-manager.js",
+            "image-processor.js",
+            "compression-utils.js",
+            "advanced-learning.js"
+        ],
+        "resources": [
+            "styles.css",
+            "logo.png",
+            "icons/*.svg"
+        ]
+    },
+    "apiConfiguration": {
+        "defaultApiUrl": "https://api.example.com/word-gpt-plus",
+        "endpoints": {
+            "generateText": "/generate",
+            "optimizeText": "/optimize",
+            "analyzeDocument": "/analyze"
+        },
+        "requestTimeout": 30000,
+        "maxRetries": 3
+    },
+    "registrySettings": {
+        "windows": {
+            "keyPath": "Software\\Microsoft\\Office\\16.0\\WEF\\Developer",
+            "valueName": "Developer_AddInsWEF"
+        },
+        "mac": {
+            "manifestsPath": "~/Library/Containers/com.microsoft.Word/Data/Documents/wef"
+        }
+    },
+    "postInstallationSteps": [
+        "Open Microsoft Word",
+        "Go to the Home tab",
+        "Find Word GPT Plus in the ribbon",
+        "Click to open the panel",
+        "Enter your API key in Settings"
+    ],
+    "uninstallationSteps": {
+        "windows": [
+            "Open Control Panel",
+            "Go to Programs and Features",
+            "Select Word GPT Plus and click Uninstall"
+        ],
+        "mac": [
+            "Open Word > Insert > My Add-ins",
+            "Right-click on Word GPT Plus",
+            "Select Remove Add-in"
+        ]
+    }
+}
