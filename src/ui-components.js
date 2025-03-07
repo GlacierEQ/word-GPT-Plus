@@ -62,3 +62,48 @@ class UIComponents {
                 left: 0;
                 width: 100vw;
                 height: 100vh;
+            }
+        `;
+        document.head.appendChild(styleSheet);
+    }
+
+    /**
+     * Set up event handlers
+     */
+    setupEventHandlers() {
+        // Event handlers for UI components
+    }
+
+    /**
+     * Create a modal
+     * @param {string} title - Modal title
+     * @param {string} content - Modal content
+     * @param {string} footerContent - Modal footer content
+     */
+    createModal(title, content, footerContent) {
+        // Create modal element and append to body
+        const modalId = `modal-${Date.now()}`;
+
+        // Use template literals for dynamic HTML generation
+        const modalHTML = `
+            <div class="wgp-modal" id="${modalId}">
+                <div class="wgp-modal-content">
+                    <div class="wgp-modal-header">
+                        <h2>${title}</h2>
+                        <button class="wgp-modal-close">&times;</button>
+                    </div>
+                    <div class="wgp-modal-body">
+                        ${content}
+                    </div>
+                    <div class="wgp-modal-footer">
+                        ${footerContent}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Append to body and return the modal element
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        return document.getElementById(modalId);
+    }
+}

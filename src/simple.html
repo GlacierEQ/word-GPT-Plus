@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word GPT Plus (Free)</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script type="module" src="simple-taskpane.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 100%;
+        }
+
+        .header {
+            background-color: #2b579a;
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #2b579a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+        }
+
+        .result {
+            background: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            min-height: 100px;
+            margin: 10px 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 10px;
+        }
+
+        .info-box {
+            background-color: #e6f7ff;
+            border-left: 4px solid #1890ff;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .template-btn {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        .template-btn.selected {
+            background-color: #d0e7ff;
+            border-color: #2b579a;
+        }
+
+        .templates-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Word GPT Plus (Free)</h1>
+        <button id="settings-toggle" style="background: none; border: none; color: white; cursor: pointer;">⚙️</button>
+    </div>
+
+    <div class="container">
+        <div id="settings-panel" class="settings-panel" style="display: none;">
+            <h3>Local AI Configuration</h3>
+            <label for="local-endpoint">Local API Endpoint:</label>
+            <input type="text" id="local-endpoint" placeholder="http://localhost:11434/api">
+
+            <label for="model-name">Model Name:</label>
+            <input type="text" id="model-name" placeholder="llama2">
+
+            <button id="save-settings">Save Settings</button>
+        </div>
+
+        <div class="info-box">
+            <p><strong>Note:</strong> This add-in is designed to work with FREE local AI models. No paid API keys
+                required!</p>
+            <p>To use: Install <a href="https://ollama.ai" target="_blank">Ollama</a> or another local AI provider on
+                your computer first.</p>
+        </div>
+
+        <div id="templates" class="templates-container">
+            <!-- Templates will be added dynamically -->
+        </div>
+
+        <div id="content-section" style="margin-top: 16px;">
+            <textarea id="prompt" placeholder="Enter your prompt here..."></textarea>
+            <button id="generate">Generate Text</button>
+            <div id="result" class="result">Generated text will appear here...</div>
+            <div class="action-buttons">
+                <button id="insert">Insert into Document</button>
+                <button id="clear-btn">Clear</button>
+            </div>
+        </div>
+
+        <div id="status" style="margin-top: 16px; color: #666;"></div>
+    </div>
+</body>
+
+</html>

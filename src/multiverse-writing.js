@@ -421,7 +421,7 @@ class MultiverseWriting {
      * @param {number[]} weights - Weights for each universe (optional)
      * @returns {Object} Merged universe
      */
-    mergeUniverses(universeIds, weights = null) {
+    async mergeUniverses(universeIds, weights = null) {
         // Validate universes exist
         const validUniverses = universeIds.filter(id => this.activeUniverses[id]);
         if (validUniverses.length < 2) {
@@ -443,10 +443,20 @@ class MultiverseWriting {
             content: this.activeUniverses[id].content
         }));
 
+        // Use mergeData for visualization and processing
+        if (this.visualComponents.mergeControls) {
+            this.visualComponents.mergeControls.updateData(mergeData);
+        }
+
         // In a real implementation, this would use AI to intelligently merge content
         // For now, we'll use a placeholder approach
         const segmentSize = 3; // Number of sentences per segment
-        const mergedContent = this.simulateMergedContent(mergeData, segmentSize);
+        const mergedContent = await this.api.generateText(
+            `Merge these ${validUniverses.length} text variants into one cohesive version that takes the best elements from each:
+
+${validUniverses.map((universe, i) =>
+                `Version ${i + 1} (${universe.dimension}): ${universe.content}`).join('\n\n')}`
+        );
 
         // Create a new universe for the merged content
         const primaryUniverse = this.activeUniverses[validUniverses[0]];
@@ -689,4 +699,36 @@ class MultiverseWriting {
                         universes[uid].dimension === bridge.target
                     );
 
-                    if (target
+                    if (targetUniverse) {
+                        const targetIndex = universeIds.indexOf(targetUniverse);
+                        const targetAngle = (2 * Math.PI * targetIndex) / universeIds.length;
+                        const targetX = Math.cos(targetAngle) * radius + radius;
+                        const targetY = Math.sin(targetAngle) * radius + radius;
+
+                        // Create bridge line
+                        const bridgeLine = document.createElement('div');
+                        bridgeLine.className = 'dimension-bridge';
+                        bridgeLine.style.position = 'absolute';
+                        bridgeLine.style.left = `${Math.min(x, targetX) + 30}px`;
+                        bridgeLine.style.top = `${Math.min(y, targetY) + 30}px`;
+                        bridgeLine.style.width = `${Math.abs(x - targetX)}px`;
+                        bridgeLine.style.height = `${Math.abs(y - targetY)}px`;
+                        bridgeLine.style.border = `2px dashed ${this.universeColors[bridge.source]}`;
+                        bridgeLine.style.zIndex = '0';
+
+                        visContainer.appendChild(bridgeLine);
+                    }
+                }
+            });
+        });
+
+        container.appendChild(visContainer);
+
+        // Trigger event
+        if (this.events.onVisualizationReady) {
+            this.events.onVisualizationReady(visContainer);
+        }
+
+        return visContainer;
+    }
+}

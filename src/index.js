@@ -1,24 +1,24 @@
-import 'office-ui-fabric-react/dist/css/fabric.min.css';
-import './taskpane/taskpane.css';
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './components/App';
+/**
+ * Word GPT Plus - Main Entry Point
+ * This file serves as the main entry point for the Word GPT Plus add-in
+ */
 
-/* global document, Office */
+// Import core dependencies
+import './polyfills.js';
+import './simple-taskpane.js';
 
-Office.onReady(() => {
-    // Office is ready
-    const container = document.getElementById('root');
-    const root = createRoot(container);
-    root.render(<App />);
+// Log initialization
+console.log('Word GPT Plus initializing...');
+
+// Initialize application when Office is ready
+Office.onReady(info => {
+    if (info.host === Office.HostType.Word) {
+        console.log('Word GPT Plus initialized in Word');
+        document.getElementById('app-loading')?.classList.add('hidden');
+        document.getElementById('app-container')?.classList.remove('hidden');
+    } else {
+        console.log('Word GPT Plus running in unsupported host');
+        document.getElementById('app-loading')?.classList.add('hidden');
+        document.getElementById('unsupported-host')?.classList.remove('hidden');
+    }
 });
-
-// Register add-in error handling
-window.onerror = (message, source, lineNumber, columnNumber, error) => {
-    console.error('Unhandled error in Word-GPT-Plus:', { message, source, lineNumber, columnNumber, error });
-
-    // You could implement error reporting here
-
-    // Don't prevent default error handling
-    return false;
-};

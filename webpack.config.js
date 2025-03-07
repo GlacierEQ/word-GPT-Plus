@@ -1,12 +1,17 @@
-const path = require('path');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const webpack = require('webpack');
+import * as path from "path";
+import { CleanWebpackPlugin } from "clean-webpack-plugin";
+import CopyWebpackPlugin from "copy-webpack-plugin";
+import HtmlWebpackPlugin from "html-webpack-plugin";
+import webpack from "webpack";
+import { fileURLToPath } from "url";
 
-module.exports = (env, options) => {
-    const dev = options.mode === 'development';
-    const buildType = dev ? 'dev' : 'prod';
-    const version = require('./package.json').version;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default (argv) => {
+    const isDevelopment = argv.mode === 'development';
+    // Use dynamic import for package.json since we're using ES modules
+    const packageVersion = process.env.npm_package_version || '1.0.0';
 
     return {
         entry: {
@@ -15,30 +20,32 @@ module.exports = (env, options) => {
         },
         output: {
             clean: true,
+            filename: 'scripts/[name].js',
             path: path.resolve(__dirname, 'dist'),
-            filename: '[name].js',
             publicPath: '/'
         },
         devServer: {
             static: {
                 directory: path.join(__dirname, 'dist'),
-                publicPath: '/',
             },
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-            },
-            server: {
-                type: 'https',
-                options: {
-                    key: path.join(__dirname, 'certs', 'localhost.key'),
-                    cert: path.join(__dirname, 'certs', 'localhost.crt')
-                }
-            },
+            compress: true,
             port: 3000,
             hot: true,
+            https: true,
+            headers: {
+                'Access-Control-Allow-Origin': '*'
+            },
         },
         resolve: {
-            extensions: ['.js', '.jsx', '.ts', '.tsx', '.html', '.css']
+            extensions: ['.js', '.jsx', '.ts', '.tsx', '.html', '.css'],
+            alias: {
+                '@core': path.resolve(__dirname, 'src/core/'),
+                '@api': path.resolve(__dirname, 'src/api/'),
+                '@ui': path.resolve(__dirname, 'src/ui/'),
+                '@utils': path.resolve(__dirname, 'src/utils/'),
+                '@models': path.resolve(__dirname, 'src/models/'),
+                '@security': path.resolve(__dirname, 'src/security/')
+            }
         },
         module: {
             rules: [
@@ -63,11 +70,9 @@ module.exports = (env, options) => {
                 },
                 {
                     test: /\.(png|jpg|jpeg|gif|ico|svg)$/,
-                    use: {
-                        loader: 'file-loader',
-                        options: {
-                            name: './assets/[name].[ext]',
-                        }
+                    type: 'asset/resource',
+                    generator: {
+                        filename: 'assets/[name][ext]'
                     }
                 },
                 {
@@ -78,6 +83,7 @@ module.exports = (env, options) => {
             ]
         },
         plugins: [
+            new CleanWebpackPlugin(),
             new CopyWebpackPlugin({
                 patterns: [
                     {
@@ -89,7 +95,7 @@ module.exports = (env, options) => {
                         from: 'manifest*.xml',
                         to: '[name]' + '[ext]',
                         transform(content) {
-                            if (dev) {
+                            if (isDevelopment) {
                                 return content;
                             } else {
                                 return content
@@ -97,12 +103,16 @@ module.exports = (env, options) => {
                                     .replace(new RegExp('https://localhost:3000', 'g'), 'https://yourproductionurl.com');
                             }
                         }
+                    },
+                    {
+                        from: 'src/ui/styles.css',
+                        to: 'styles/main.css'
                     }
                 ]
             }),
             new HtmlWebpackPlugin({
-                filename: 'taskpane.html',
-                template: './src/taskpane/taskpane.html',
+                filename: 'enhanced-taskpane.html',
+                template: './src/ui/taskpane.html',
                 chunks: ['taskpane']
             }),
             new HtmlWebpackPlugin({
@@ -111,11 +121,11 @@ module.exports = (env, options) => {
                 chunks: ['commands']
             }),
             new webpack.DefinePlugin({
-                'process.env.NODE_ENV': JSON.stringify(options.mode),
-                'process.env.BUILD_TYPE': JSON.stringify(buildType),
-                'process.env.VERSION': JSON.stringify(version)
+                'process.env.NODE_ENV': JSON.stringify(argv.mode),
+                'process.env.BUILD_TYPE': JSON.stringify(isDevelopment ? 'dev' : 'prod'),
+                'process.env.VERSION': JSON.stringify(packageVersion)
             })
         ],
-        devtool: dev ? 'source-map' : false,
+        devtool: isDevelopment ? 'source-map' : false,
     };
 };

@@ -1,45 +1,24 @@
-module.exports = {
-  root: true,
+export default {
   env: {
-    node: true
+    browser: true,
+    es2021: true,
+    node: true,
   },
-  parser: 'vue-eslint-parser',
-  extends: [
-    'plugin:vue/vue3-recommended',
-    '@vue/standard',
-    '@vue/typescript/recommended',
-    '@vue/eslint-config-prettier'
-  ],
-  plugins: ['@typescript-eslint'],
-  rules: {
-    'no-console': process.env.NODE_ENV === 'production' ? 'off' : 'off',
-    'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
-    indent: 'off',
-    'no-async-promise-executor': 'off',
-    'no-unused-vars': 'off',
-    '@typescript-eslint/no-unused-vars': 'error',
-    '@typescript-eslint/indent': 'off',
-    '@typescript-eslint/no-this-alias': 'off',
-    '@typescript-eslint/no-explicit-any': 'off',
-    'vue/no-v-html': 'off',
-    'prettier/prettier': [
-      'error',
-      {},
-      {
-        usePrettierrc: true
-      }
-    ]
-  },
+  extends: 'eslint:recommended',
   parserOptions: {
-    parser: '@typescript-eslint/parser'
+    ecmaVersion: 12,
+    sourceType: 'module',
   },
-  overrides: [
-    {
-      files: ['*.ts', '*.vue'],
-      rules: {
-        'no-undef': 'off' // https://typescript-eslint.io/docs/linting/troubleshooting/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
-      }
-    }
-  ],
-  ignorePatterns: ['src/**/*.d.ts']
-}
+  rules: {
+    'indent': ['error', 2],
+    'linebreak-style': ['error', 'unix'],
+    'quotes': ['error', 'single'],
+    'semi': ['error', 'always'],
+    'no-unused-vars': ['warn'],
+    'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+  },
+  globals: {
+    Office: 'readonly',
+    Word: 'readonly',
+  }
+};

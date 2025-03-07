@@ -14,8 +14,8 @@
     "sourceMap": true,
     "baseUrl": "./",
     "types": [
-      "webpack-env",
-      "office-js"
+      "@types/webpack-env",
+      "@types/office-js"
     ],
     "paths": {
       "@/*": [

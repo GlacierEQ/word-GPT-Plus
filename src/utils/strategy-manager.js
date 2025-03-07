@@ -100,3 +100,18 @@ class StrategyManager {
             .map(strategy => {
                 // Calculate suitability score
                 const baseScore = strategy.priority || 50;
+                // Additional scoring factors can be added here
+                return {
+                    id: strategy.id,
+                    name: strategy.name,
+                    score: baseScore,
+                    strategy: strategy
+                };
+            });
+            
+        // Sort by score (descending) and limit results
+        return applicableStrategies
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit);
+    }
+}

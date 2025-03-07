@@ -36,4 +36,12 @@ class PreferencesManager {
                 recursiveOptimizationEnabled: true,
                 multiverseWritingEnabled: true,
                 imageProcessingEnabled: true
-            },
+            }
+        };
+        
+        // Initialize user preferences from storage
+        this.userPreferences = this.loadPreferences();
+    }
+    
+    // Add the rest of the class methods here
+}

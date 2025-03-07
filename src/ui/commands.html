@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <title>Commands</title>
+    <!-- Office.js -->
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js" type="text/javascript"></script>
+</head>
+
+<body>
+    <!-- The commands run invisibly, so this page doesn't need any visible UI -->
+    <script>
+        // Page initialization
+        Office.onReady(function (info) {
+            if (info.host === Office.HostType.Word) {
+                console.log("Commands page initialized in Word");
+            }
+        });
+    </script>
+</body>
+
+</html>

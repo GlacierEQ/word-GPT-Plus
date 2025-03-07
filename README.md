@@ -142,109 +142,89 @@ Give a ⭐️ if this project helped you!
 
 # Word GPT Plus
 
-Advanced AI assistant for Microsoft Word with local models and recursive optimization
+An AI-powered Microsoft Word add-in that enhances document creation and editing through intelligent content generation, editing suggestions, and contextual assistance.
 
 ## Features
 
-- 🚀 **Multiverse Writing**: Generate multiple variations of text in different styles
-- 🔍 **Recursive Optimization**: Iteratively improve content quality through AI feedback cycles
-- 🧠 **Local Models**: Support for running local AI models for privacy and offline use
-- 📊 **Quality Standards**: Built-in quality metrics and standards enforcement
-- 🏢 **Enterprise Security**: Advanced security protocols for sensitive content
-- 📋 **Workflow Automation**: Automated document improvement workflows
-- 📈 **Analytics Dashboard**: Track usage and quality metrics
+- **AI-Powered Content Generation**: Generate high-quality text based on prompts or selected content.
+- **Local AI Model Support**: Use quantized local models for offline operation and privacy.
+- **Multiverse Writing**: Explore multiple writing styles and variations of the same content.
+- **Context-Aware Assistance**: Get intelligent suggestions based on your document's context.
+- **Document Analysis**: Analyze readability, tone, and other metrics of your text.
 
 ## Installation
 
-### Requirements
+### Development Setup
 
-- Microsoft Word 2016 or later
-- Windows 10/11 or macOS 10.15+
-- For local models: 8GB+ RAM, 10GB+ disk space
+1. Clone this repository:
+```bash
+git clone https://github.com/your-username/word-GPT-Plus.git
+cd word-GPT-Plus
+```
 
-### Quick Start
+2. Install dependencies:
+```bash
+npm install
+```
 
-1. **Download the add-in package**
-   - Download the latest release from the Releases page
+3. Start the development server:
+```bash
+npm start
+```
 
-2. **Install the add-in in Word**
-   - Open Word
-   - Go to Insert > Add-ins > My Add-ins
-   - Choose "Upload My Add-in" and select the downloaded manifest file
+4. Sideload the add-in in Word:
+   - In Word, go to Insert > Add-ins > My Add-ins
+   - Choose "Manage My Add-ins" > "Upload My Add-in"
+   - Browse to the manifest file in the project root
+   - Click "Install"
 
-3. **Configuration**
-   - When first launched, choose your preferred AI provider
-   - For API models: Enter your API key
-   - For local models: Download your preferred model when prompted
+### Production Deployment
 
-## Using Word GPT Plus
+```bash
+npm run build
+node scripts/deploy.js prod
+```
 
-### Content Generation
+## Configuration
 
-1. Place your cursor where you want to insert content
-2. Open the Word GPT Plus sidebar
-3. Enter your prompt in the "Generate" tab
-4. Click "Generate" to create content
-5. Click "Insert" to add the content to your document
+The add-in can be configured to use different AI models:
 
-### Multiverse Writing
-
-1. Select text you want to transform
-2. Go to the "Multiverse" tab
-3. Choose your desired style variations
-4. Click "Generate Variants"
-5. Select your preferred version to insert
-
-### Perfect Text
-
-1. Select text you want to optimize
-2. Go to the "Perfect" tab
-3. Choose optimization options
-4. Click "Perfect Selected Text"
-5. Review and insert the improved version
-
-### Quality Analytics
-
-1. Go to the "Analytics" tab to view document quality metrics
-2. See suggestions for improvement
-3. Track your writing quality over time
-
-## Advanced Features
-
-### Local Model Management
-
-Word GPT Plus supports several quantized local models:
-
-- Llama 2 (7B 4-bit)
-- Mistral (7B 4-bit)
-- Phi-2 (4-bit)
-
-Download and manage models in the Settings tab.
-
-### Security Options
-
-- **Content Scanning**: Automatically detect sensitive information
-- **Data Minimization**: Remove unnecessary personal data
-- **Encryption**: Secure API keys and sensitive content
-
-### Adaptive Learning
-
-The add-in learns from your preferences over time:
-
-- Writing style preferences
-- Content density preferences
-- Content format preferences
-- Frequently used concepts
+- **API-based models**: Connect to OpenAI, Azure, or other API providers
+- **Local models**: Run quantized models directly in the browser for privacy
+- **Hybrid mode**: Use local models for simple tasks and API for complex ones
 
 ## Development
 
-### Building from Source
+### Project Structure
 
-1. Clone the repository.
-2. Navigate to the project directory.
-3. Run `npm install` to install dependencies and build the project.
-4. Follow the instructions in the Microsoft documentation to sideload the add-in into Word.
+- `/src`: Source code
+  - `/api`: API clients for different AI providers
+  - `/core`: Core application logic
+  - `/ui`: User interface components
+  - `/utils`: Utility functions
+- `/assets`: Static assets
+- `/scripts`: Build and deployment scripts
 
-## Usage
+### Building
 
-<!-- Add usage instructions here -->
+```bash
+# Development build with watch mode
+npm run dev
+
+# Production build
+npm run build
+```
+
+### Testing
+
+```bash
+npm test
+```
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

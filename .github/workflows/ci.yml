@@ -1,116 +1,75 @@
-name: CI/CD Pipeline
+name: CI/CD
 
 on:
   push:
-    branches: [ main, master, dev ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+
     steps:
       - uses: actions/checkout@v3
-
-      - name: Setup Node.js
+      
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
-
+      
       - name: Install dependencies
         run: npm ci
-
+      
+      - name: Lint
+        run: npm run lint
+      
+      - name: Build
+        run: npm run build
+      
+      - name: Test
+        run: npm test
+        
       - name: Validate manifest
         run: npm run validate
-
-      - name: Lint code
-        run: npm run lint
-
-  test:
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-
-      - name: Upload test coverage
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage
-          path: coverage
-
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build package
-        run: npm run build
-        env:
-          NODE_ENV: production
-
-      - name: Run quality check
-        run: node scripts/qualityCheck.js
-
+        
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
         with:
           name: dist
-          path: dist
-
-      - name: Upload package
-        uses: actions/upload-artifact@v3
-        with:
-          name: package
-          path: word-gpt-plus-*.zip
-
+          path: dist/
+          
   deploy:
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    
     steps:
       - uses: actions/checkout@v3
-
+      
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
+          
       - name: Download build artifacts
         uses: actions/download-artifact@v3
         with:
-          name: package
-          path: .
-
-      - name: Set up environment for deployment
-        run: |
-          echo "Setting up deployment environment"
-          mkdir -p deployment
-
-      - name: Deploy to staging
-        run: |
-          echo "Deploying to staging environment"
-          # This would be where you deploy to your hosting provider
-          # Example: aws s3 sync ./dist s3://your-bucket-name/word-gpt-plus/
-
-      - name: Notify on success
-        run: |
-          echo "Deployment successful"
-          # Add notification logic here (Slack, email, etc.)
+          name: dist
+          path: dist
+          
+      - name: Create deployment package
+        run: npm run deploy
+      
+      # You would add steps here to deploy to your hosting provider
+      # For example, deploying to GitHub Pages:
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist
+          branch: gh-pages

@@ -173,7 +173,7 @@ export default function StructuredTab() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [result, setResult] = useState('');
     const [error, setError] = useState(null);
-    const [selectedText, setCurrentSelectedText] = useState('');
+    const [currentSelectedText, setCurrentSelectedText] = useState('');
 
     const abortController = useRef(null);
 

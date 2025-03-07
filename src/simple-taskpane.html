@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word GPT Plus (Simple)</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            color: #333;
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .header {
+            background-color: #2b579a;
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .templates {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .template-btn {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .template-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .template-btn.selected {
+            background-color: #d0e7ff;
+            border-color: #2b579a;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .generate-btn {
+            background-color: #2b579a;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .generate-btn:hover {
+            background-color: #1f407a;
+        }
+
+        .generate-btn:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+
+        .result-container {
+            margin-top: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: white;
+            padding: 16px;
+            min-height: 100px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            flex: 1;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .action-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .settings-panel {
+            margin-top: 16px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 16px;
+        }
+
+        .settings-row {
+            margin-bottom: 16px;
+        }
+
+        .settings-row label {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .settings-row input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .error {
+            color: #d32f2f;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #fdecea;
+            border-radius: 4px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Word GPT Plus</h1>
+        <button id="settings-toggle" style="background: none; border: none; color: white; cursor: pointer;">⚙️</button>
+    </div>
+
+    <div class="container">
+        <div id="settings-panel" class="settings-panel" style="display: none;">
+            <h2 style="margin-top: 0;">Settings</h2>
+            <div class="settings-row">
+                <label for="api-key">OpenAI API Key</label>
+                <input type="password" id="api-key" placeholder="sk-...">
+            </div>
+            <div class="settings-row">
+                <label for="model-select">Model</label>
+                <select id="model-select" style="width: 100%; padding: 8px;">
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                    <option value="gpt-4">GPT-4</option>
+                </select>
+            </div>
+            <button id="save-settings" class="generate-btn">Save Settings</button>
+        </div>
+
+        <div id="templates" class="templates">
+            <!-- Templates will be added dynamically -->
+        </div>
+
+        <textarea id="prompt-input" placeholder="Enter your prompt here..."></textarea>
+
+        <button id="generate-btn" class="generate-btn">Generate with AI</button>
+
+        <div id="result-container" class="result-container">
+            <div id="result">Results will appear here...</div>
+        </div>
+
+        <div class="action-buttons">
+            <button id="insert-btn" class="action-btn">Insert into Document</button>
+            <button id="clear-btn" class="action-btn">Clear All</button>
+        </div>
+
+        <div id="error-message" class="error" style="display: none;"></div>
+    </div>
+
+    <script type="module" src="simple-taskpane.js"></script>
+</body>
+
+</html>
