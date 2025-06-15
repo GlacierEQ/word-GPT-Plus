@@ -62,6 +62,57 @@ const SENSITIVE_KEYS = [
     'apiKeys.groq'
 ];
 
+// Prefix for secure storage keys
+const SECURE_PREFIX = 'secure.';
+
+/**
+ * Generate or retrieve encryption key from localStorage
+ * @returns {string} encryption key
+ */
+function getEncryptionKey() {
+    const storage = getStorage();
+    const keyName = 'word-gpt-plus.encryption-key';
+    let key = storage.getItem(keyName);
+    if (!key) {
+        key = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        storage.setItem(keyName, key);
+    }
+    return key;
+}
+
+/**
+ * Simple XOR-based encryption (synchronous)
+ * NOTE: this is a lightweight mechanism to avoid plaintext storage
+ * and is not intended for high security scenarios.
+ * @param {string} text - Text to encrypt
+ * @returns {string} base64-encoded encrypted string
+ */
+function encrypt(text) {
+    const key = getEncryptionKey();
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+        result += String.fromCharCode(code);
+    }
+    return btoa(result);
+}
+
+/**
+ * Decrypt value stored with `encrypt`
+ * @param {string} encrypted - Encrypted base64 string
+ * @returns {string} decrypted string
+ */
+function decrypt(encrypted) {
+    const key = getEncryptionKey();
+    const text = atob(encrypted);
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const code = text.charCodeAt(i) ^ key.charCodeAt(i % key.length);
+        result += String.fromCharCode(code);
+    }
+    return result;
+}
+
 /**
  * Get the current settings storage
  * @returns {Object} Storage interface
@@ -94,6 +145,16 @@ function getStorage() {
 export function getSetting(path, defaultValue = null) {
     try {
         const storage = getStorage();
+        if (SENSITIVE_KEYS.includes(path)) {
+            const secureValue = storage.getItem(`word-gpt-plus.${SECURE_PREFIX}${path}`);
+            if (secureValue) {
+                try {
+                    return decrypt(secureValue);
+                } catch (e) {
+                    console.error('Failed to decrypt sensitive setting:', e);
+                }
+            }
+        }
         const pathParts = path.split('.');
         const topLevelKey = pathParts[0];
 
@@ -167,8 +228,11 @@ export function updateSetting(path, value) {
 
         // Handle sensitive data
         if (SENSITIVE_KEYS.includes(path)) {
-            // You could add encryption here
-            console.log('Storing sensitive data for path:', path);
+            const encrypted = encrypt(String(value));
+            storage.setItem(`word-gpt-plus.${SECURE_PREFIX}${path}`, encrypted);
+            // Also remove any existing plaintext entry
+            storage.removeItem(`word-gpt-plus.${topLevelKey}`);
+            return true;
         }
 
         // Get current stored value for this top level

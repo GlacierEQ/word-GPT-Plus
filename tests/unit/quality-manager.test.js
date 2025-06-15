@@ -3,14 +3,14 @@
  */
 
 const assert = require('assert');
-const sinon = require('sinon');
+const sinon = require('sinon/pkg/sinon.js');
 
 // Mock objects for testing
 const mockPerformanceNow = sinon.stub().returns(1000);
-const mockConsoleError = sinon.spy();
+const mockConsoleError = sinon.stub();
 const mockLocalStorage = {
     getItem: sinon.stub(),
-    setItem: sinon.spy()
+    setItem: sinon.stub()
 };
 
 // Save original objects
@@ -19,12 +19,12 @@ const originalConsole = global.console;
 const originalLocalStorage = global.localStorage;
 
 // Mock the global objects
-global.performance = { now: mockPerformanceNow };
+global.performance.now = mockPerformanceNow;
 global.console = { ...console, error: mockConsoleError };
 global.localStorage = mockLocalStorage;
 
 // Import the module under test
-const QualityManager = require('../../dist/quality-manager');
+const QualityManager = require('../../src/quality-manager.cjs');
 
 describe('QualityManager', () => {
     let qualityManager;
@@ -42,7 +42,7 @@ describe('QualityManager', () => {
 
     afterAll(() => {
         // Restore original objects
-        global.performance = originalPerformance;
+        global.performance.now = originalPerformance.now;
         global.console = originalConsole;
         global.localStorage = originalLocalStorage;
     });
