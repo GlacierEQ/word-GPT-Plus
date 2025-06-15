@@ -35,15 +35,13 @@ describe('SystemIntegration', () => {
         // Reset module registry before each test
         jest.resetModules();
 
-        // Create mock for window global components
-        global.window = {
-            qualityStandards: mockQualityStandards,
-            modelManager: mockModelManager,
-            documentManager: mockDocumentManager
-        };
+        // Attach mock components to the JSDOM window
+        global.window.qualityStandards = mockQualityStandards;
+        global.window.modelManager = mockModelManager;
+        global.window.documentManager = mockDocumentManager;
 
         // Import the module under test
-        const SystemIntegration = require('../../src/core/system-integration');
+        const SystemIntegration = require('../../src/core/system-integration.cjs');
 
         // Create a new instance for testing
         systemIntegration = new SystemIntegration();
@@ -113,5 +111,11 @@ describe('SystemIntegration', () => {
         expect(improvementAreas).not.toContain('coherence');
         expect(improvementAreas).not.toContain('correctness');
         expect(improvementAreas).not.toContain('conciseness');
+    });
+
+    afterAll(() => {
+        delete global.window.qualityStandards;
+        delete global.window.modelManager;
+        delete global.window.documentManager;
     });
 });
