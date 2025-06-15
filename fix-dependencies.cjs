@@ -74,7 +74,7 @@ try {
     // Add or update helpful scripts
     packageJson.scripts = {
         ...(packageJson.scripts || {}),
-        "fix-deps": "node fix-dependencies.js",
+        "fix-deps": "node fix-dependencies.cjs",
         "dev": "webpack serve --mode development",
         "build": "webpack --mode production",
         "validate": "office-addin-manifest validate manifest.xml",
