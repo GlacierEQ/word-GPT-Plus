@@ -50,3 +50,8 @@ deployment/local/
 .npm/
 .eslintcache
 .node_repl_history
+
+# Coders in Flow
+.codersinflow
+.vscode
+node_modules
