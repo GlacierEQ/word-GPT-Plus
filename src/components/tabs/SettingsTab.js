@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import {
     Stack,
     Text,
@@ -17,11 +17,16 @@ import {
     Slider,
     SpinButton,
     ComboBox,
-    Link
+    Link,
+    Spinner,
+    SpinnerSize
 } from '@fluentui/react';
 
 import { getSetting, updateSetting } from '../../services/settings/settingsManager';
 import { updateService } from '../../services/updater/updateService';
+
+// Lazy load the API keys component
+const ApiKeysSettings = lazy(() => import('../settings/ApiKeysSettings'));
 
 // API key input with reveal/hide functionality
 const ApiKeyField = ({ label, settingPath, placeholder }) => {
@@ -219,7 +224,18 @@ export default function SettingsTab() {
 
             <Pivot>
                 <PivotItem headerText="API Keys">
-                    <Stack tokens={{ childrenGap: 20 }} styles={{ root: { padding: '10px 0' } }}>
+                    <Suspense fallback={
+                        <Stack horizontalAlign="center" style={{ padding: 20 }}>
+                            <Spinner size={SpinnerSize.medium} />
+                            <Text>Loading API settings...</Text>
+                        </Stack>
+                    }>
+                        <ApiKeysSettings />
+                    </Suspense>
+                </PivotItem>
+
+                <PivotItem headerText="General">
+                    <Stack tokens={{ childrenGap: 20 }} style={{ marginTop: 20 }}>
                         <ApiKeyField
                             label="OpenAI API Key"
                             settingPath="apiKeys.openai"

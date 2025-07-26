@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Pivot, PivotItem, Spinner, SpinnerSize, MessageBar, MessageBarType, Stack, Text } from '@fluentui/react';
 import { ApiErrorProvider } from '../../context/ApiErrorContext';
 import { SettingsProvider } from '../../context/SettingsContext';
+import { EnhancedApiProvider } from '../../context/EnhancedApiContext';
 
 // Import tabs
 import BasicTab from '../../components/tabs/BasicTab';
@@ -85,35 +86,36 @@ export default function App() {
                         </Text>
                     </header>
 
-                    <div className="app-content">
-                        <Pivot aria-label="Word-GPT-Plus Features">
-                            <PivotItem headerText="Basic" itemKey="basic">
-                                <div className="tab-content">
-                                    <BasicTab />
-                                </div>
-                            </PivotItem>
+                        <div className="app-content">
+                            <Pivot aria-label="Word-GPT-Plus Features">
+                                <PivotItem headerText="Basic" itemKey="basic">
+                                    <div className="tab-content">
+                                        <BasicTab />
+                                    </div>
+                                </PivotItem>
 
-                            <PivotItem headerText="Structured" itemKey="structured">
-                                <div className="tab-content">
-                                    <StructuredTab />
-                                </div>
-                            </PivotItem>
+                                <PivotItem headerText="Structured" itemKey="structured">
+                                    <div className="tab-content">
+                                        <StructuredTab />
+                                    </div>
+                                </PivotItem>
 
-                            <PivotItem headerText="Photos" itemKey="photos">
-                                <div className="tab-content">
-                                    <PhotosTab />
-                                </div>
-                            </PivotItem>
+                                <PivotItem headerText="Photos" itemKey="photos">
+                                    <div className="tab-content">
+                                        <PhotosTab />
+                                    </div>
+                                </PivotItem>
 
-                            <PivotItem headerText="Settings" itemKey="settings">
-                                <div className="tab-content">
-                                    <SettingsTab />
-                                </div>
-                            </PivotItem>
-                        </Pivot>
+                                <PivotItem headerText="Settings" itemKey="settings">
+                                    <div className="tab-content">
+                                        <SettingsTab />
+                                    </div>
+                                </PivotItem>
+                            </Pivot>
+                        </div>
                     </div>
-                </div>
-            </ApiErrorProvider>
-        </SettingsProvider>
+                </EnhancedApiProvider>
+            </SettingsProvider>
+        </ApiErrorProvider>
     );
 }
