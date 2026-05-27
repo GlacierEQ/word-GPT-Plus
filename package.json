@@ -10,7 +10,8 @@
     "dev": "webpack --mode development --watch",
     "test": "jest",
     "postinstall": "node fix-dependencies.cjs",
-    "lint": "eslint src/**/*.js"
+    "lint": "eslint src/**/*.js",
+    "organize-case": "node scripts/forensic-organizer.js"
   },
   "repository": {
     "type": "git",

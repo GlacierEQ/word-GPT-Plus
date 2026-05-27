@@ -228,3 +228,10 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Additional Guides
+
+- [Upgrades and Combos](docs/upgrades-and-combos.md): Learn about premium options and how to chain built-in prompts for more powerful workflows.
+- [Future Technology Roadmap](docs/roadmap/future-tech-roadmap.md): Explore advanced initiatives like GPU acceleration and automated refactoring.
+
+- [Forensic Case Organization Guide](docs/forensic-case-organization.md): Learn how to sort and rename evidence files with AI-assisted tools.
